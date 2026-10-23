@@ -1,0 +1,3276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkVault · macOS Desktop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .desktop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0a0e14;
+            overflow: hidden;
+        }
+
+        .video-wallpaper {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ===== Bottom Taskbar ===== */
+        .taskbar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 32px;
+            background: rgba(20, 20, 28, 0.55);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            display: flex;
+            align-items: center;
+            padding: 0 18px;
+            z-index: 10000;
+            font-size: 12.5px;
+            color: #fff;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            gap: 16px;
+        }
+
+        .taskbar .tb-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .taskbar .tb-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.92;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .taskbar .tb-owner {
+            background: rgba(0, 122, 255, 0.35);
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .taskbar .tb-owner.guest {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .taskbar .tb-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-left: auto;
+        }
+
+        .taskbar .tb-clock {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .taskbar .tb-battery {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .battery-shell {
+            width: 26px;
+            height: 13px;
+            border: 1.5px solid rgba(255,255,255,0.75);
+            border-radius: 4px;
+            position: relative;
+            padding: 1.5px;
+        }
+
+        .battery-shell::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2.5px;
+            height: 5px;
+            background: rgba(255,255,255,0.75);
+            border-radius: 0 1px 1px 0;
+        }
+
+        .battery-fill {
+            height: 100%;
+            border-radius: 1.5px;
+            background: #34c759;
+            transition: width 0.4s, background 0.3s;
+            width: 100%;
+        }
+
+        .battery-fill.low { background: #ff3b30; }
+        .battery-fill.medium { background: #ffcc00; }
+
+        .battery-text {
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            opacity: 0.9;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        /* ===== Dock ===== */
+        .dock {
+            position: fixed;
+            bottom: 44px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+        }
+
+        .dock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 4px 7px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.15s;
+            position: relative;
+        }
+
+        .dock-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.1);
+        }
+
+        .dock-item .dock-icon {
+            font-size: 26px;
+            line-height: 1;
+        }
+
+        .dock-item .dock-label {
+            font-size: 8px;
+            color: #fff;
+            font-weight: 500;
+            opacity: 0.8;
+            white-space: nowrap;
+        }
+
+        .dock-item .dock-dot {
+            width: 4px;
+            height: 4px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: 0.15s;
+        }
+
+        .dock-item.open .dock-dot { opacity: 1; }
+
+        .dock-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ff3b30;
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 2px solid rgba(30,30,40,0.5);
+        }
+
+        .dock-badge.show { display: flex; }
+
+        /* ===== App Windows ===== */
+        .app-window {
+            position: fixed;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 100;
+            min-width: 400px;
+            min-height: 300px;
+            animation: windowOpen 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+        }
+
+        .app-window.open { display: flex; }
+
+        @keyframes windowOpen {
+            from { opacity: 0; transform: scale(0.92) translateY(-10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .app-title-bar {
+            background: #f6f6f8;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #dcdce0;
+            cursor: grab;
+            flex-shrink: 0;
+        }
+
+        .app-title-bar:active { cursor: grabbing; }
+
+        .traffic-lights {
+            display: flex;
+            gap: 7px;
+            margin-right: 8px;
+        }
+
+        .light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: 0.1s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .light::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8px;
+            color: rgba(0,0,0,0.5);
+            font-weight: 700;
+            opacity: 0;
+            transition: 0.1s;
+        }
+
+        .light:hover::after { opacity: 1; }
+
+        .light.red { background: #ff5f57; }
+        .light.red:hover::after { content: '✕'; }
+        .light.yellow { background: #ffbd2e; }
+        .light.yellow:hover::after { content: '−'; }
+        .light.green { background: #28c940; }
+        .light.green:hover::after { content: '↗'; }
+
+        .app-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #2e2e32;
+            letter-spacing: -0.2px;
+            flex: 1;
+            text-align: center;
+            margin-right: 40px;
+        }
+
+        .app-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #ffffff;
+        }
+
+        .app-body::-webkit-scrollbar { width: 8px; }
+        .app-body::-webkit-scrollbar-track { background: transparent; }
+        .app-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+
+        /* ===== Game Vault ===== */
+        .vault-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .vault-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: #1d1d1f;
+        }
+
+        .vault-header h2 span {
+            font-weight: 400;
+            font-size: 15px;
+            color: #7a7a80;
+            margin-left: 8px;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .game-card {
+            background: #f8f8fc;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #eaeaef;
+            transition: transform 0.15s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .game-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+            line-height: 1;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #eaeaef;
+        }
+        .game-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .game-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: #1d1d1f;
+            margin-bottom: 4px;
+        }
+
+        .game-meta {
+            font-size: 12px;
+            color: #8e8e93;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .game-meta .play-badge {
+            background: #e9e9ef;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #3a3a3e;
+        }
+
+        .play-btn {
+            margin-top: auto;
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid rgba(0, 122, 255, 0.25);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #007aff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: 0.1s;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .play-btn:hover { background: rgba(0, 122, 255, 0.2); }
+
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #ff3b30;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: 0.1s;
+            z-index: 2;
+        }
+
+        .delete-btn:hover { background: #ff3b30; color: white; }
+        .game-card .delete-btn.show { display: flex; }
+
+        .no-games {
+            text-align: center;
+            padding: 48px 24px;
+            background: #f8f8fc;
+            border-radius: 12px;
+            border: 1px dashed #d2d2d8;
+            color: #8e8e93;
+            font-size: 15px;
+            grid-column: 1 / -1;
+        }
+
+        /* Add game form */
+        .add-panel {
+            background: #f6f6fa;
+            border-radius: 12px;
+            margin-top: 24px;
+            padding: 20px;
+            border: 1px solid #e2e2ea;
+            display: none;
+        }
+
+        .add-panel.show { display: block; }
+
+        .add-panel h3 { font-size: 15px; font-weight: 600; color: #1d1d1f; margin-bottom: 16px; }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            flex: 1 1 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #6c6c72;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            background: #fff;
+            border: 1px solid #d6d6dc;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: 0.1s;
+        }
+
+        .form-group textarea { resize: vertical; min-height: 100px; }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            background: #f2f2f7;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1d1d1f;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.1s;
+            border: 1px solid #d6d6dc;
+            font-family: inherit;
+        }
+
+        .btn-primary { background: #007aff; border-color: #007aff; color: white; }
+        .btn-primary:hover { background: #0066d9; }
+        .btn:hover { background: #e8e8ed; }
+        .btn-primary:hover { background: #0062cc; }
+        .btn-danger { background: #ff3b30; border-color: #ff3b30; color: white; }
+        .btn-danger:hover { background: #e0352b; }
+        .btn-success { background: #34c759; border-color: #34c759; color: white; }
+        .btn-success:hover { background: #2db84e; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+
+        /* ===== AI Chat ===== */
+        .ai-container { display: flex; flex-direction: column; height: 100%; }
+        .ai-messages {
+            flex: 1; overflow-y: auto; padding: 4px 0;
+            display: flex; flex-direction: column; gap: 12px; min-height: 200px;
+        }
+        .ai-message { display: flex; gap: 10px; max-width: 85%; }
+        .ai-message.user { align-self: flex-end; flex-direction: row-reverse; }
+        .ai-message .avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .ai-message.bot .avatar { background: #007aff; color: white; }
+        .ai-message.user .avatar { background: #34c759; color: white; }
+        .ai-message .bubble {
+            padding: 10px 14px; border-radius: 16px; font-size: 14px;
+            line-height: 1.5; color: #1d1d1f;
+        }
+        .ai-message.bot .bubble { background: #f2f2f7; border-bottom-left-radius: 4px; }
+        .ai-message.user .bubble { background: #007aff; color: white; border-bottom-right-radius: 4px; }
+        .ai-message .bubble img { max-width: 180px; max-height: 140px; border-radius: 8px; margin-top: 6px; display: block; }
+        .ai-input-area {
+            padding: 12px 0 0 0; border-top: 1px solid #eaeaef;
+            display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0;
+        }
+        .ai-input-area textarea {
+            flex: 1; background: #f8f8fc; border: 1px solid #d6d6dc;
+            border-radius: 10px; padding: 10px 14px; font-size: 14px;
+            font-family: inherit; outline: none; resize: none;
+            min-height: 42px; max-height: 120px; transition: 0.1s;
+        }
+        .ai-input-area textarea:focus {
+            border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15); background: #fff;
+        }
+        .ai-send-btn {
+            background: #007aff; border: none; border-radius: 50%;
+            width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 16px; cursor: pointer; transition: 0.1s; flex-shrink: 0;
+        }
+        .ai-send-btn:hover { background: #0066d9; }
+        .ai-send-btn:disabled { background: #b0b0b8; cursor: not-allowed; }
+        .ai-image-btn {
+            background: transparent; border: 1px solid #d6d6dc; border-radius: 10px;
+            width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+            color: #6c6c72; font-size: 18px; cursor: pointer; transition: 0.1s; flex-shrink: 0;
+        }
+        .ai-image-btn:hover { background: #e8e8ed; }
+        .ai-image-preview { display: none; padding: 8px 0 0 0; align-items: center; gap: 10px; }
+        .ai-image-preview.show { display: flex; }
+        .ai-image-preview img { max-height: 50px; max-width: 70px; border-radius: 6px; border: 1px solid #d6d6dc; }
+        .ai-image-preview .remove-img {
+            background: #ff3b30; color: white; border: none; border-radius: 50%;
+            width: 22px; height: 22px; cursor: pointer; font-size: 11px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ai-typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+        .ai-typing span {
+            width: 7px; height: 7px; background: #8e8e93; border-radius: 50%; animation: typing 1.2s infinite;
+        }
+        .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* ===== Chat App ===== */
+        .chat-app { display: flex; height: 100%; gap: 0; }
+        .chat-sidebar {
+            width: 210px; background: #f6f6fa; border-right: 1px solid #eaeaef;
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .chat-tabs {
+            display: flex; border-bottom: 1px solid #eaeaef; flex-shrink: 0;
+        }
+        .chat-tab {
+            flex: 1; padding: 10px 6px; text-align: center; font-size: 12px;
+            font-weight: 600; color: #6c6c72; cursor: pointer; transition: 0.1s;
+            border-bottom: 2px solid transparent;
+        }
+        .chat-tab:hover { background: #eeeef4; }
+        .chat-tab.active { color: #007aff; border-bottom-color: #007aff; background: #fff; }
+        .chat-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .chat-list-item {
+            display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+            border-radius: 8px; cursor: pointer; transition: 0.1s; margin-bottom: 2px;
+        }
+        .chat-list-item:hover { background: #eeeef4; }
+        .chat-list-item.active { background: #007aff; color: white; }
+        .chat-list-item .chat-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #007aff; color: white; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 600; flex-shrink: 0;
+        }
+        .chat-list-item.active .chat-avatar { background: white; color: #007aff; }
+        .chat-list-item .chat-avatar.group { background: #ff9500; }
+        .chat-list-item.active .chat-avatar.group { background: white; color: #ff9500; }
+        .chat-list-item .chat-info { flex: 1; min-width: 0; }
+        .chat-list-item .chat-name { font-size: 13px; font-weight: 600; }
+        .chat-list-item .chat-preview {
+            font-size: 11px; opacity: 0.7; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .chat-list-item .chat-streak {
+            font-size: 11px; font-weight: 700; color: #ff9500;
+            display: flex; align-items: center; gap: 2px;
+        }
+        .chat-new-group-btn {
+            margin: 8px; padding: 8px 10px; border-radius: 8px;
+            background: #007aff; color: white; border: none;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: 0.1s; font-family: inherit;
+        }
+        .chat-new-group-btn:hover { background: #0066d9; }
+        .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .chat-header {
+            padding: 12px 16px; border-bottom: 1px solid #eaeaef;
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+            background: #fafafc;
+        }
+        .chat-header .chat-title { font-size: 14px; font-weight: 600; color: #1d1d1f; flex: 1; }
+        .chat-header .chat-members { font-size: 11px; color: #8e8e93; }
+        .chat-header .pet-display { font-size: 24px; }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 10px; background: #fff;
+        }
+        .chat-msg { max-width: 75%; display: flex; flex-direction: column; }
+        .chat-msg.mine { align-self: flex-end; align-items: flex-end; }
+        .chat-msg .msg-sender {
+            font-size: 10px; color: #8e8e93; margin-bottom: 2px;
+            padding: 0 4px; font-weight: 600;
+        }
+        .chat-msg.mine .msg-sender { color: #007aff; text-align: right; }
+        .chat-msg .msg-bubble {
+            padding: 8px 12px; border-radius: 14px; font-size: 13px; line-height: 1.4;
+        }
+        .chat-msg.theirs .msg-bubble { background: #f2f2f7; color: #1d1d1f; border-bottom-left-radius: 4px; }
+        .chat-msg.mine .msg-bubble { background: #007aff; color: white; border-bottom-right-radius: 4px; }
+        .chat-msg .msg-time { font-size: 9px; color: #aeaeb2; margin-top: 2px; padding: 0 4px; }
+        .chat-input-area {
+            padding: 10px 12px; border-top: 1px solid #eaeaef;
+            display: flex; gap: 8px; align-items: center; flex-shrink: 0; background: #fafafc;
+        }
+        .chat-input-area input {
+            flex: 1; background: #fff; border: 1px solid #d6d6dc;
+            border-radius: 20px; padding: 8px 14px; font-size: 13px;
+            font-family: inherit; outline: none; transition: 0.1s;
+        }
+        .chat-input-area input:focus {
+            border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+        .chat-send-btn {
+            background: #007aff; border: none; border-radius: 50%;
+            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 14px; cursor: pointer; flex-shrink: 0;
+        }
+        .chat-send-btn:hover { background: #0066d9; }
+        .chat-empty {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: #8e8e93;
+            font-size: 14px; padding: 20px; text-align: center; gap: 8px;
+        }
+        .chat-empty .big-icon { font-size: 48px; }
+
+        .chat-warning {
+            padding: 6px 12px; background: #fff3cd; color: #856404;
+            font-size: 11px; border-bottom: 1px solid #ffeeba;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .pet-panel {
+            padding: 10px 12px; background: #fff8f0; border-top: 1px solid #ffe0b2;
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+        }
+        .pet-panel .pet-icon { font-size: 28px; }
+        .pet-panel .pet-info { flex: 1; }
+        .pet-panel .pet-name { font-size: 12px; font-weight: 600; color: #1d1d1f; }
+        .pet-panel .pet-streak { font-size: 11px; color: #ff9500; font-weight: 700; }
+        .pet-panel .pet-progress {
+            height: 4px; background: #ffe0b2; border-radius: 2px; margin-top: 4px; overflow: hidden;
+        }
+        .pet-panel .pet-progress-bar {
+            height: 100%; background: #ff9500; border-radius: 2px; transition: width 0.3s;
+        }
+
+        /* ===== Friends App ===== */
+        .friends-app { display: flex; flex-direction: column; height: 100%; }
+        .friends-header {
+            padding: 12px 16px; border-bottom: 1px solid #eaeaef;
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0; background: #fafafc;
+        }
+        .friends-header h3 { font-size: 15px; font-weight: 600; color: #1d1d1f; flex: 1; }
+        .friends-add-bar {
+            display: flex; gap: 8px; padding: 10px 16px;
+            border-bottom: 1px solid #eaeaef; background: #f6f6fa;
+        }
+        .friends-add-bar input {
+            flex: 1; background: #fff; border: 1px solid #d6d6dc;
+            border-radius: 8px; padding: 7px 12px; font-size: 13px;
+            font-family: inherit; outline: none;
+        }
+        .friends-add-bar input:focus {
+            border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+        .friends-content { flex: 1; overflow-y: auto; padding: 12px 16px; }
+        .friends-section { margin-bottom: 20px; }
+        .friends-section h4 {
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #8e8e93; margin-bottom: 8px;
+        }
+        .friend-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 8px; transition: 0.1s;
+            margin-bottom: 4px; background: #f8f8fc;
+        }
+        .friend-item:hover { background: #eeeef4; }
+        .friend-item .friend-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: #34c759; color: white; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 600; flex-shrink: 0;
+        }
+        .friend-item .friend-name { flex: 1; font-size: 13px; font-weight: 500; color: #1d1d1f; }
+        .friend-item .friend-actions { display: flex; gap: 4px; }
+        .friends-empty {
+            text-align: center; padding: 30px 20px; color: #8e8e93;
+            font-size: 13px; display: flex; flex-direction: column;
+            align-items: center; gap: 8px;
+        }
+        .friends-empty .big-icon { font-size: 36px; }
+        .req-badge {
+            background: #ff3b30; color: white; font-size: 10px; font-weight: 700;
+            padding: 1px 6px; border-radius: 10px; margin-left: 4px;
+        }
+
+        /* ===== Links App ===== */
+        .links-app { display: flex; flex-direction: column; height: 100%; }
+        .links-header {
+            padding: 12px 16px; border-bottom: 1px solid #eaeaef;
+            display: flex; align-items: center; gap: 10px; flex-shrink: 0; background: #fafafc;
+        }
+        .links-header h3 { font-size: 15px; font-weight: 600; color: #1d1d1f; flex: 1; }
+        .links-add-bar {
+            display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px;
+            border-bottom: 1px solid #eaeaef; background: #f6f6fa;
+        }
+        .links-add-bar input {
+            background: #fff; border: 1px solid #d6d6dc;
+            border-radius: 8px; padding: 7px 12px; font-size: 13px;
+            font-family: inherit; outline: none; flex: 1 1 120px;
+        }
+        .links-add-bar input:focus {
+            border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+        .links-add-bar button { flex: 0 0 auto; }
+        .links-content { flex: 1; overflow-y: auto; padding: 12px 16px; }
+        .link-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; border-radius: 10px; transition: 0.1s;
+            margin-bottom: 8px; background: #f8f8fc; border: 1px solid #eaeaef;
+        }
+        .link-item:hover { background: #eeeef4; }
+        .link-item .link-img {
+            width: 48px; height: 48px; border-radius: 8px;
+            object-fit: cover; flex-shrink: 0; border: 1px solid #d6d6dc;
+            background: #fff;
+        }
+        .link-item .link-info { flex: 1; min-width: 0; }
+        .link-item .link-title { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+        .link-item .link-url {
+            font-size: 12px; color: #007aff; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; display: block;
+            text-decoration: none;
+        }
+        .link-item .link-url:hover { text-decoration: underline; }
+        .link-item .link-delete {
+            background: rgba(255, 59, 48, 0.1); border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #ff3b30; width: 28px; height: 28px; border-radius: 50%;
+            cursor: pointer; font-size: 13px; display: flex;
+            align-items: center; justify-content: center; transition: 0.1s;
+            flex-shrink: 0;
+        }
+        .link-item .link-delete:hover { background: #ff3b30; color: white; }
+
+        /* ===== Settings App ===== */
+        .settings-section { margin-bottom: 24px; }
+        .settings-section h3 {
+            font-size: 14px; font-weight: 600; color: #1d1d1f;
+            margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eaeaef;
+        }
+        .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+        .theme-option {
+            border-radius: 12px; padding: 14px; cursor: pointer;
+            border: 2px solid transparent; transition: 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .theme-option:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
+        .theme-option.active { border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25); }
+        .theme-option .theme-swatch { width: 100%; height: 36px; border-radius: 6px; display: flex; overflow: hidden; }
+        .theme-swatch div { flex: 1; }
+        .theme-option .theme-name { font-size: 12px; font-weight: 600; color: #1d1d1f; }
+
+        .wallpaper-upload-area {
+            margin-top: 16px; padding: 20px; border: 2px dashed #d6d6dc;
+            border-radius: 12px; text-align: center; cursor: pointer;
+            transition: 0.2s; background: #fafafc;
+        }
+        .wallpaper-upload-area:hover { border-color: #007aff; background: #f0f7ff; }
+        .wallpaper-upload-area .upload-icon { font-size: 32px; margin-bottom: 8px; }
+        .wallpaper-upload-area .upload-text { font-size: 13px; color: #6c6c72; font-weight: 500; }
+        .wallpaper-upload-area .upload-sub { font-size: 11px; color: #aeaeb2; margin-top: 4px; }
+        .custom-wallpaper-preview {
+            margin-top: 12px; display: none; align-items: center; gap: 12px;
+            padding: 12px; background: #f6f6fa; border-radius: 10px;
+        }
+        .custom-wallpaper-preview.show { display: flex; }
+        .custom-wallpaper-preview img {
+            width: 80px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #d6d6dc;
+        }
+        .custom-wallpaper-preview .preview-info { flex: 1; font-size: 13px; color: #1d1d1f; font-weight: 500; }
+        .custom-wallpaper-preview .remove-wallpaper {
+            background: #ff3b30; color: white; border: none; border-radius: 6px;
+            padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+        }
+
+        /* Cursor settings */
+        .cursor-section {
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .cursor-preview {
+            width: 120px; height: 120px; border-radius: 12px;
+            border: 2px dashed #d6d6dc; display: flex;
+            align-items: center; justify-content: center;
+            background: #fafafc; overflow: hidden;
+            margin: 0 auto;
+        }
+        .cursor-preview img {
+            max-width: 90%; max-height: 90%; object-fit: contain;
+        }
+        .cursor-size-control {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .cursor-size-control label { font-size: 13px; color: #1d1d1f; font-weight: 500; }
+        .cursor-size-control input[type="range"] {
+            flex: 1; accent-color: #007aff;
+        }
+        .cursor-size-control span { font-size: 12px; color: #8e8e93; min-width: 40px; text-align: right; }
+        .cursor-buttons { display: flex; gap: 10px; margin-top: 8px; }
+
+        /* ===== Login / Register Modal ===== */
+        .login-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 20000; visibility: hidden; opacity: 0; transition: 0.2s; padding: 20px;
+        }
+        .login-overlay.active { visibility: visible; opacity: 1; }
+        .login-window {
+            width: 100%; max-width: 380px; background: #fff; border-radius: 14px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3); overflow: hidden;
+        }
+        .login-title-bar {
+            background: #f6f6f8; padding: 14px 18px;
+            display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #dcdce0;
+        }
+        .login-title-bar .title { font-weight: 600; font-size: 14px; color: #1d1d1f; }
+        .login-body { padding: 24px 22px 22px; }
+        .login-body h3 { font-size: 17px; font-weight: 700; color: #1d1d1f; margin-bottom: 4px; text-align: center; }
+        .login-body p { font-size: 12px; color: #8e8e93; text-align: center; margin-bottom: 20px; }
+        .login-field { margin-bottom: 14px; }
+        .login-field label {
+            display: block; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.3px; color: #6c6c72; margin-bottom: 5px;
+        }
+        .login-field input {
+            width: 100%; background: #f8f8fc; border: 1px solid #d6d6dc;
+            border-radius: 8px; padding: 10px 12px; font-size: 14px;
+            font-family: inherit; outline: none; transition: 0.1s;
+        }
+        .login-field input:focus {
+            border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15); background: #fff;
+        }
+        .login-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+        .login-switch { text-align: center; margin-top: 16px; font-size: 12px; color: #8e8e93; }
+        .login-switch a { color: #007aff; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .login-switch a:hover { text-decoration: underline; }
+        .login-error { color: #ff3b30; font-size: 12px; text-align: center; margin-top: 10px; min-height: 16px; }
+        .login-success { color: #34c759; font-size: 12px; text-align: center; margin-top: 10px; min-height: 16px; }
+
+        /* ===== Game Play Modal ===== */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 15000; visibility: hidden; opacity: 0; transition: 0.2s; padding: 20px;
+        }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .game-modal {
+            width: 100%; max-width: 900px; height: 80vh; background: #fff;
+            border-radius: 16px; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .modal-title-bar {
+            background: #f6f6f8; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #dcdce0;
+        }
+        .modal-title-bar .title { font-weight: 600; font-size: 15px; color: #1d1d1f; }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #8e8e93; padding: 0 6px; transition: 0.1s; }
+        .modal-close:hover { color: #1d1d1f; }
+        .iframe-wrapper { flex: 1; background: #1d1d1f; position: relative; }
+        .iframe-wrapper iframe {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border: none; background: #1d1d1f;
+        }
+
+        /* ===== Group chat creation modal ===== */
+        .group-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 18000; visibility: hidden; opacity: 0; transition: 0.2s; padding: 20px;
+        }
+        .group-overlay.active { visibility: visible; opacity: 1; }
+        .group-window {
+            width: 100%; max-width: 400px; background: #fff; border-radius: 14px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3); overflow: hidden;
+            display: flex; flex-direction: column; max-height: 80vh;
+        }
+        .group-title-bar {
+            background: #f6f6f8; padding: 14px 18px;
+            display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #dcdce0;
+            flex-shrink: 0;
+        }
+        .group-title-bar .title { font-weight: 600; font-size: 14px; color: #1d1d1f; }
+        .group-body { padding: 18px 20px; overflow-y: auto; }
+        .group-body h3 { font-size: 15px; font-weight: 700; color: #1d1d1f; margin-bottom: 14px; }
+        .group-field { margin-bottom: 14px; }
+        .group-field label {
+            display: block; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.3px; color: #6c6c72; margin-bottom: 5px;
+        }
+        .group-field input {
+            width: 100%; background: #f8f8fc; border: 1px solid #d6d6dc;
+            border-radius: 8px; padding: 9px 12px; font-size: 13px;
+            font-family: inherit; outline: none; transition: 0.1s;
+        }
+        .group-field input:focus { border-color: #007aff; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15); background: #fff; }
+        .group-friends-list { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
+        .group-friend-check {
+            display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+            border-radius: 8px; cursor: pointer; transition: 0.1s; background: #f8f8fc;
+        }
+        .group-friend-check:hover { background: #eeeef4; }
+        .group-friend-check input { width: 16px; height: 16px; cursor: pointer; accent-color: #007aff; }
+        .group-friend-check .gf-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: #34c759; color: white; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600; flex-shrink: 0;
+        }
+        .group-friend-check .gf-name { font-size: 13px; font-weight: 500; color: #1d1d1f; }
+        .group-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+        .group-error { color: #ff3b30; font-size: 12px; text-align: center; margin-top: 8px; min-height: 16px; }
+
+        /* ===== Notification Toast ===== */
+        .toast {
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: rgba(30, 30, 35, 0.95); color: white; padding: 10px 20px;
+            border-radius: 12px; font-size: 13px; font-weight: 500; z-index: 30000;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+            backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            pointer-events: none; max-width: 90vw; text-align: center;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 600px) {
+            .app-window { min-width: 90vw; max-width: 95vw; min-height: 200px; }
+            .game-grid { grid-template-columns: 1fr 1fr; }
+            .dock-item .dock-label { display: none; }
+            .chat-sidebar { width: 70px; }
+            .chat-list-item .chat-info { display: none; }
+            .chat-tab { font-size: 10px; padding: 8px 2px; }
+            .taskbar .tb-item span:not(.tb-icon) { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== DESKTOP ===== -->
+<div class="desktop" id="desktop">
+    <video class="video-wallpaper" id="wallpaperVideo" autoplay muted loop playsinline>
+        <source src="https://cdn.livelywallpaper.app/wallpapers/rainy-torii-shrine-path/preview.mp4" type="video/mp4">
+    </video>
+</div>
+
+<!-- ===== BOTTOM TASKBAR ===== -->
+<div class="taskbar">
+    <div class="tb-left">
+        <span class="tb-item"></span>
+        <span class="tb-item">LinkVault</span>
+        <span class="tb-item tb-owner guest" id="tbOwnerStatus">🔒 Guest</span>
+    </div>
+    <div class="tb-right">
+        <div class="tb-item tb-battery">
+            <div class="battery-shell">
+                <div class="battery-fill" id="batteryFill" style="width: 100%;"></div>
+            </div>
+            <span class="battery-text" id="batteryText">100%</span>
+        </div>
+        <span class="tb-item tb-clock" id="tbClock">--:--</span>
+    </div>
+</div>
+
+<!-- ===== DOCK ===== -->
+<div class="dock" id="dock">
+    <div class="dock-item" data-app="vault" id="dockVault">
+        <span class="dock-icon">🎮</span>
+        <span class="dock-label">Vault</span>
+        <span class="dock-dot"></span>
+    </div>
+    <div class="dock-item" data-app="links" id="dockLinks">
+        <span class="dock-icon">🔗</span>
+        <span class="dock-label">Links</span>
+        <span class="dock-dot"></span>
+    </div>
+    <div class="dock-item" data-app="chat" id="dockChat">
+        <span class="dock-icon">💬</span>
+        <span class="dock-label">Chat</span>
+        <span class="dock-dot"></span>
+        <span class="dock-badge" id="chatBadge">0</span>
+    </div>
+    <div class="dock-item" data-app="friends" id="dockFriends">
+        <span class="dock-icon">👥</span>
+        <span class="dock-label">Friends</span>
+        <span class="dock-dot"></span>
+        <span class="dock-badge" id="friendsBadge">0</span>
+    </div>
+    <div class="dock-item" data-app="ai" id="dockAI">
+        <span class="dock-icon">🤖</span>
+        <span class="dock-label">AI</span>
+        <span class="dock-dot"></span>
+    </div>
+    <div class="dock-item" data-app="settings" id="dockSettings">
+        <span class="dock-icon">⚙️</span>
+        <span class="dock-label">Settings</span>
+        <span class="dock-dot"></span>
+    </div>
+    <div class="dock-item" data-app="login" id="dockLogin">
+        <span class="dock-icon" id="dockLoginIcon">🔑</span>
+        <span class="dock-label" id="dockLoginLabel">Sign In</span>
+        <span class="dock-dot"></span>
+    </div>
+</div>
+
+<!-- ===== APP: GAME VAULT ===== -->
+<div class="app-window" id="window-vault" style="top: 60px; left: 80px; width: 720px; height: 540px;">
+    <div class="app-title-bar" id="titleBar-vault">
+        <div class="traffic-lights">
+            <div class="light red" data-close="vault"></div>
+            <div class="light yellow" data-minimize="vault"></div>
+            <div class="light green" data-maximize="vault"></div>
+        </div>
+        <div class="app-title">🎮 Game Vault</div>
+    </div>
+    <div class="app-body" id="vaultBody">
+        <div class="vault-header">
+            <h2>🎮 Game Vault <span id="gameCount">0 games</span></h2>
+            <div style="font-size: 12px; color: #6c6c72;">no account needed to play · Ryan adds games</div>
+        </div>
+        <div class="game-grid" id="gameGrid"></div>
+
+        <div class="add-panel" id="addPanel">
+            <h3>➕ Add a new game (HTML code) — Owner only</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Game title</label>
+                    <input type="text" id="gameTitleInput" placeholder="e.g. Neon Runner">
+                </div>
+                <div class="form-group">
+                    <label>Game Image URL (optional)</label>
+                    <input type="text" id="gameImageInput" placeholder="https://... (leave blank for emoji)">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Fallback Icon (emoji)</label>
+                    <input type="text" id="gameIconInput" placeholder="🎮" value="🎮">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex: 1 1 100%;">
+                    <label>HTML code (paste full HTML document)</label>
+                    <textarea id="gameHtmlInput" placeholder="&lt;html&gt;&lt;body&gt;...&lt;/body&gt;&lt;/html&gt;" style="min-height: 120px;"></textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <input type="text" id="gameDescInput" placeholder="short description">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn" id="cancelAddBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveGameBtn">Save game</button>
+            </div>
+        </div>
+
+        <div id="ownerActions" style="margin-top: 20px; display: none;">
+            <button class="btn btn-primary" id="addGameBtn" style="width: 100%;">➕ Add Game (Owner)</button>
+        </div>
+
+        <div id="guestNotice" style="margin-top: 20px; padding: 12px; background: #f0f7ff; border-radius: 10px; font-size: 13px; color: #007aff; text-align: center;">
+            👤 You're playing as a guest. <a href="#" id="guestLoginLink" style="color: #007aff; font-weight: 600;">Sign in</a> or <a href="#" id="guestRegisterLink" style="color: #007aff; font-weight: 600;">create an account</a> to join the community. Only the owner can add games.
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP: LINKS ===== -->
+<div class="app-window" id="window-links" style="top: 80px; left: 110px; width: 560px; height: 520px;">
+    <div class="app-title-bar" id="titleBar-links">
+        <div class="traffic-lights">
+            <div class="light red" data-close="links"></div>
+            <div class="light yellow" data-minimize="links"></div>
+            <div class="light green" data-maximize="links"></div>
+        </div>
+        <div class="app-title">🔗 Links</div>
+    </div>
+    <div class="app-body" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="links-app">
+            <div class="links-header">
+                <h3>🔗 Shared Links</h3>
+            </div>
+            <div class="links-add-bar">
+                <input type="text" id="linkImageInput" placeholder="Image URL (optional)">
+                <input type="text" id="linkTitleInput" placeholder="Link title">
+                <input type="text" id="linkUrlInput" placeholder="https://...">
+                <button class="btn btn-primary btn-sm" id="addLinkBtn">Add Link</button>
+            </div>
+            <div class="links-content" id="linksContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP: CHAT ===== -->
+<div class="app-window" id="window-chat" style="top: 70px; left: 120px; width: 680px; height: 540px;">
+    <div class="app-title-bar" id="titleBar-chat">
+        <div class="traffic-lights">
+            <div class="light red" data-close="chat"></div>
+            <div class="light yellow" data-minimize="chat"></div>
+            <div class="light green" data-maximize="chat"></div>
+        </div>
+        <div class="app-title">💬 Chat</div>
+    </div>
+    <div class="app-body" style="padding: 0; overflow: hidden;">
+        <div class="chat-app" style="height: 100%;">
+            <div class="chat-sidebar">
+                <div class="chat-tabs">
+                    <div class="chat-tab active" data-chat-tab="global">🌍 Global</div>
+                    <div class="chat-tab" data-chat-tab="dms">💌 DMs</div>
+                </div>
+                <div class="chat-list" id="chatList"></div>
+                <button class="chat-new-group-btn" id="newGroupBtn" style="display: none;">➕ New Group</button>
+            </div>
+            <div class="chat-main">
+                <div class="chat-header" id="chatHeader">
+                    <div class="chat-title" id="chatTitle">🌍 Global Chat</div>
+                    <div class="chat-members" id="chatMembers"></div>
+                    <div class="pet-display" id="chatPetDisplay"></div>
+                </div>
+                <div class="chat-warning" id="globalWarning" style="display: none;">⚠️ Please keep global chat friendly — bad words are filtered.</div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-empty">
+                        <div class="big-icon">💬</div>
+                        <div>Sign in to chat with people around the world!</div>
+                    </div>
+                </div>
+                <div class="pet-panel" id="petPanel" style="display: none;">
+                    <div class="pet-icon" id="petIcon">🥚</div>
+                    <div class="pet-info">
+                        <div class="pet-name" id="petName">Streak Pet</div>
+                        <div class="pet-streak" id="petStreak">0 🔥 days</div>
+                        <div class="pet-progress"><div class="pet-progress-bar" id="petProgressBar" style="width: 0%;"></div></div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="Type a message..." disabled>
+                    <button class="chat-send-btn" id="chatSendBtn" disabled>➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP: FRIENDS ===== -->
+<div class="app-window" id="window-friends" style="top: 90px; left: 160px; width: 520px; height: 520px;">
+    <div class="app-title-bar" id="titleBar-friends">
+        <div class="traffic-lights">
+            <div class="light red" data-close="friends"></div>
+            <div class="light yellow" data-minimize="friends"></div>
+            <div class="light green" data-maximize="friends"></div>
+        </div>
+        <div class="app-title">👥 Friends</div>
+    </div>
+    <div class="app-body" style="padding: 0; overflow: hidden;">
+        <div class="friends-app" style="height: 100%;">
+            <div class="friends-header">
+                <h3>👥 Friends</h3>
+            </div>
+            <div class="friends-add-bar">
+                <input type="text" id="friendUsernameInput" placeholder="Enter username to add friend...">
+                <button class="btn btn-primary btn-sm" id="addFriendBtn">Add</button>
+            </div>
+            <div class="friends-content" id="friendsContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP: AI CHAT ===== -->
+<div class="app-window" id="window-ai" style="top: 100px; left: 150px; width: 480px; height: 560px;">
+    <div class="app-title-bar" id="titleBar-ai">
+        <div class="traffic-lights">
+            <div class="light red" data-close="ai"></div>
+            <div class="light yellow" data-minimize="ai"></div>
+            <div class="light green" data-maximize="ai"></div>
+        </div>
+        <div class="app-title">🤖 AI Assistant</div>
+    </div>
+    <div class="app-body" style="padding: 16px; display: flex; flex-direction: column;">
+        <div class="ai-container" style="height: 100%;">
+            <div class="ai-messages" id="aiMessages">
+                <div class="ai-message bot">
+                    <div class="avatar">🤖</div>
+                    <div class="bubble">Hi! I'm your AI assistant. Ask me anything or send an image for analysis. Try "what's in this image?" with a picture!</div>
+                </div>
+            </div>
+            <div class="ai-image-preview" id="aiImagePreview">
+                <img id="aiPreviewImg" src="" alt="preview">
+                <span style="font-size: 12px; color: #6c6c72;">Image attached</span>
+                <button class="remove-img" id="removeImgBtn">✕</button>
+            </div>
+            <div class="ai-input-area">
+                <button class="ai-image-btn" id="aiImageBtn" title="Attach image">📷</button>
+                <textarea id="aiInput" placeholder="Type a message... (Shift+Enter for new line)" rows="1"></textarea>
+                <button class="ai-send-btn" id="aiSendBtn">➤</button>
+            </div>
+            <input type="file" id="aiImageFile" accept="image/*" style="display: none;">
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP: SETTINGS ===== -->
+<div class="app-window" id="window-settings" style="top: 80px; left: 200px; width: 560px; height: 580px;">
+    <div class="app-title-bar" id="titleBar-settings">
+        <div class="traffic-lights">
+            <div class="light red" data-close="settings"></div>
+            <div class="light yellow" data-minimize="settings"></div>
+            <div class="light green" data-maximize="settings"></div>
+        </div>
+        <div class="app-title">⚙️ Settings</div>
+    </div>
+    <div class="app-body">
+        <div class="settings-section">
+            <h3>🎨 Wallpaper Theme</h3>
+            <p style="font-size: 12px; color: #8e8e93; margin-bottom: 12px;">Pick a preset theme. The default is the rainy torii shrine video.</p>
+            <div class="theme-grid" id="themeGrid"></div>
+        </div>
+        <div class="settings-section">
+            <h3>🖼️ Custom Wallpaper</h3>
+            <p style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">Upload your own image to use as the desktop background.</p>
+            <div class="wallpaper-upload-area" id="wallpaperUploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Click to upload an image</div>
+                <div class="upload-sub">PNG, JPG, GIF, WebP · max 10MB</div>
+            </div>
+            <input type="file" id="wallpaperFileInput" accept="image/*" style="display: none;">
+            <div class="custom-wallpaper-preview" id="customWallpaperPreview">
+                <img id="customWallpaperImg" src="" alt="custom wallpaper">
+                <div class="preview-info">Custom wallpaper applied</div>
+                <button class="remove-wallpaper" id="removeWallpaperBtn">Remove</button>
+            </div>
+        </div>
+        <div class="settings-section">
+            <h3>🖱️ Custom Cursor</h3>
+            <p style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">Use a custom image as your cursor.</p>
+            <div class="cursor-section">
+                <div class="cursor-preview" id="cursorPreview">
+                    <img id="cursorPreviewImg" src="https://i.imgur.com/8Q9Z5pC.png" alt="cursor preview">
+                </div>
+                <div class="cursor-size-control">
+                    <label>Size</label>
+                    <input type="range" id="cursorSizeSlider" min="16" max="128" value="32">
+                    <span id="cursorSizeLabel">32px</span>
+                </div>
+                <div class="cursor-buttons">
+                    <button class="btn btn-primary btn-sm" id="applyCursorBtn">Apply Cursor</button>
+                    <button class="btn btn-sm" id="resetCursorBtn">Reset to Default</button>
+                </div>
+                <input type="file" id="cursorFileInput" accept="image/*" style="display: none;">
+                <div style="margin-top: 8px;">
+                    <button class="btn btn-sm" id="uploadCursorBtn" style="width: 100%;">📁 Upload Custom Cursor Image</button>
+                </div>
+            </div>
+        </div>
+        <div class="settings-section">
+            <h3>👤 Account</h3>
+            <p style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;" id="settingsAccountStatus">Not signed in.</p>
+            <button class="btn btn-primary" id="settingsLoginBtn">🔑 Sign In / Register</button>
+            <button class="btn btn-danger" id="settingsLogoutBtn" style="display: none; margin-top: 8px;">🚪 Sign Out</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== LOGIN / REGISTER MODAL ===== -->
+<div class="login-overlay" id="loginOverlay">
+    <div class="login-window">
+        <div class="login-title-bar">
+            <div class="traffic-lights">
+                <div class="light red" id="closeLoginBtn"></div>
+                <div class="light yellow"></div>
+                <div class="light green"></div>
+            </div>
+            <div class="title" id="loginTitle">Account</div>
+        </div>
+        <div class="login-body">
+            <h3 id="loginHeading">🔐 Sign in</h3>
+            <p id="loginSubtext">Sign in to your LinkVault account</p>
+            <div class="login-field">
+                <label>Username</label>
+                <input type="text" id="loginUsername" placeholder="Username" autocomplete="off">
+            </div>
+            <div class="login-field">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="off">
+            </div>
+            <div class="login-field" id="confirmPasswordField" style="display: none;">
+                <label>Confirm Password</label>
+                <input type="password" id="loginConfirmPassword" placeholder="••••••••" autocomplete="off">
+            </div>
+            <div class="login-error" id="loginError"></div>
+            <div class="login-success" id="loginSuccess"></div>
+            <div class="login-actions">
+                <button class="btn" id="cancelLoginBtn">Cancel</button>
+                <button class="btn btn-primary" id="submitLoginBtn">Sign In</button>
+            </div>
+            <div class="login-switch">
+                <span id="loginSwitchText">Don't have an account? </span>
+                <a id="loginSwitchLink">Create one</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== CREATE GROUP MODAL ===== -->
+<div class="group-overlay" id="groupOverlay">
+    <div class="group-window">
+        <div class="group-title-bar">
+            <div class="traffic-lights">
+                <div class="light red" id="closeGroupBtn"></div>
+                <div class="light yellow"></div>
+                <div class="light green"></div>
+            </div>
+            <div class="title">New Group Chat</div>
+        </div>
+        <div class="group-body">
+            <h3>➕ Create Group Chat</h3>
+            <div class="group-field">
+                <label>Group name</label>
+                <input type="text" id="groupNameInput" placeholder="e.g. Game Squad">
+            </div>
+            <div class="group-field">
+                <label>Select friends</label>
+                <div class="group-friends-list" id="groupFriendsList"></div>
+            </div>
+            <div class="group-error" id="groupError"></div>
+            <div class="group-actions">
+                <button class="btn" id="cancelGroupBtn">Cancel</button>
+                <button class="btn btn-primary" id="createGroupBtn">Create Group</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== GAME PLAY MODAL ===== -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="game-modal">
+        <div class="modal-title-bar">
+            <div class="title" id="modalGameTitle">Playing</div>
+            <button class="modal-close" id="closeModalBtn">✕</button>
+        </div>
+        <div class="iframe-wrapper">
+            <iframe id="gameIframe" src="about:blank" title="game"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"></div>
+
+<script>
+    (function(){
+        // ========== STORAGE KEYS ==========
+        const GAMES_KEY = 'linkvault_games';
+        const USERS_KEY = 'linkvault_users';
+        const SESSION_KEY = 'linkvault_session';
+        const WALLPAPER_KEY = 'linkvault_custom_wallpaper';
+        const FRIENDS_KEY = 'linkvault_friends';
+        const REQUESTS_KEY = 'linkvault_friend_requests';
+        const GLOBAL_CHAT_KEY = 'linkvault_global_chat';
+        const DMS_KEY = 'linkvault_dms';
+        const STREAKS_KEY = 'linkvault_streaks';
+        const GROUPS_KEY = 'linkvault_groups';
+        const LINKS_KEY = 'linkvault_links';
+        const CURSOR_KEY = 'linkvault_cursor';
+
+        // ========== PROFANITY FILTER ==========
+        const BAD_WORDS = [
+            'fuck','shit','bitch','asshole','damn','dick','pussy','cunt','bastard',
+            'whore','slut','fag','nigger','nigga','retard','kill yourself','kys',
+            'sex','porn','nude','naked','rape','cock','penis','vagina','boob','tits',
+            'wtf','stfu','gtfo','fuk','fck','sht','bch','dmn','dck','psay','cnt'
+        ];
+
+        function containsBadWord(text) {
+            const lower = text.toLowerCase();
+            return BAD_WORDS.some(w => lower.includes(w));
+        }
+
+        function filterBadWords(text) {
+            let filtered = text;
+            BAD_WORDS.forEach(w => {
+                const re = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                filtered = filtered.replace(re, '*'.repeat(w.length));
+            });
+            return filtered;
+        }
+
+        // ========== LOAD/SAVE HELPERS ==========
+        function loadJSON(key, fallback) {
+            try {
+                const stored = localStorage.getItem(key);
+                if (stored) return JSON.parse(stored);
+            } catch (e) { console.warn('Failed to load', key, e); }
+            return fallback;
+        }
+
+        function saveJSON(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) { console.warn('Failed to save', key, e); }
+        }
+
+        // ========== DATA ==========
+        let games = loadJSON(GAMES_KEY, []);
+        function saveGames() { saveJSON(GAMES_KEY, games); }
+
+        let links = loadJSON(LINKS_KEY, []);
+        function saveLinks() { saveJSON(LINKS_KEY, links); }
+
+        let users = loadJSON(USERS_KEY, {});
+        function saveUsers() { saveJSON(USERS_KEY, users); }
+
+        let session = loadJSON(SESSION_KEY, null);
+        function saveSession(s) { saveJSON(SESSION_KEY, s); }
+
+        let customWallpaperData = localStorage.getItem(WALLPAPER_KEY) || null;
+        function saveCustomWallpaper(dataUrl) {
+            try {
+                if (dataUrl) localStorage.setItem(WALLPAPER_KEY, dataUrl);
+                else localStorage.removeItem(WALLPAPER_KEY);
+            } catch (e) { console.warn('Failed to save wallpaper:', e); showToast('⚠️ Could not save wallpaper'); }
+        }
+
+        let customCursorData = loadJSON(CURSOR_KEY, { url: 'https://i.imgur.com/8Q9Z5pC.png', size: 32 });
+        function saveCustomCursor(data) {
+            try {
+                localStorage.setItem(CURSOR_KEY, JSON.stringify(data));
+            } catch (e) { console.warn('Failed to save cursor:', e); }
+        }
+
+        let friends = loadJSON(FRIENDS_KEY, {});
+        function saveFriends() { saveJSON(FRIENDS_KEY, friends); }
+
+        let friendRequests = loadJSON(REQUESTS_KEY, {});
+        function saveFriendRequests() { saveJSON(REQUESTS_KEY, friendRequests); }
+
+        let globalChat = loadJSON(GLOBAL_CHAT_KEY, []);
+        function saveGlobalChat() { saveJSON(GLOBAL_CHAT_KEY, globalChat); }
+
+        let dms = loadJSON(DMS_KEY, {});
+        function saveDms() { saveJSON(DMS_KEY, dms); }
+
+        let streaks = loadJSON(STREAKS_KEY, {});
+        function saveStreaks() { saveJSON(STREAKS_KEY, streaks); }
+
+        let groups = loadJSON(GROUPS_KEY, {});
+        function saveGroups() { saveJSON(GROUPS_KEY, groups); }
+
+        // Owner credentials
+        const OWNER_USERNAME = 'Ryan';
+        const OWNER_PASSWORD = '0101';
+
+        if (!users[OWNER_USERNAME]) {
+            users[OWNER_USERNAME] = { password: OWNER_PASSWORD, isOwner: true };
+        } else {
+            users[OWNER_USERNAME].isOwner = true;
+            users[OWNER_USERNAME].password = OWNER_PASSWORD;
+        }
+        saveUsers();
+
+        let isOwner = false;
+        let currentUser = null;
+
+        if (session && users[session.username]) {
+            currentUser = session.username;
+            isOwner = users[session.username].isOwner === true;
+        } else {
+            session = null;
+            saveSession(null);
+        }
+
+        // Themes
+        const themes = [
+            { name: 'Rainy Torii (Default)', blobs: null, bg: null },
+            { name: 'macOS Blue', blobs: ['#007aff', '#34c759', '#ff9f0a', '#ff3b30'], bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' },
+            { name: 'Sunset', blobs: ['#ff6b6b', '#ff9f0a', '#ff3b30', '#ffa07a'], bg: 'linear-gradient(135deg, #2d1b2e 0%, #4a1e3a 50%, #6b2c4a 100%)' },
+            { name: 'Ocean', blobs: ['#4ecdc4', '#44a3aa', '#5d9cec', '#007aff'], bg: 'linear-gradient(135deg, #0a1628 0%, #0d2847 50%, #1a3a5c 100%)' },
+            { name: 'Purple Haze', blobs: ['#a06cd5', '#c780e8', '#7b2cbf', '#e0aaff'], bg: 'linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #3d2b5e 100%)' },
+            { name: 'Forest', blobs: ['#34c759', '#28a745', '#8bc34a', '#4caf50'], bg: 'linear-gradient(135deg, #0a1f0a 0%, #143514 50%, #1e4a1e 100%)' },
+            { name: 'Monochrome', blobs: ['#8e8e93', '#48484a', '#c7c7cc', '#636366'], bg: 'linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 50%, #3a3a3c 100%)' },
+            { name: 'Candy', blobs: ['#ff6b9d', '#ffa07a', '#ff69b4', '#ff85c8'], bg: 'linear-gradient(135deg, #2d1a2d 0%, #4a2a4a 50%, #6b3a5a 100%)' },
+            { name: 'Midnight', blobs: ['#2c3e50', '#34495e', '#1a252f', '#4a6278'], bg: 'linear-gradient(135deg, #0a0e14 0%, #141a22 50%, #1e2a3a 100%)' }
+        ];
+
+        let currentTheme = themes[0];
+        let pendingImage = null;
+        let loginMode = 'signin';
+
+        // Chat state
+        let activeChatTab = 'global';
+        let activeDmFriend = null;
+        let activeGroupId = null;
+
+        // ========== DOM REFS ==========
+        const desktop = document.getElementById('desktop');
+        const wallpaperVideo = document.getElementById('wallpaperVideo');
+
+        const tbOwnerStatus = document.getElementById('tbOwnerStatus');
+        const tbClock = document.getElementById('tbClock');
+        const batteryFill = document.getElementById('batteryFill');
+        const batteryText = document.getElementById('batteryText');
+
+        const dockItems = document.querySelectorAll('.dock-item');
+        const dockLoginIcon = document.getElementById('dockLoginIcon');
+        const dockLoginLabel = document.getElementById('dockLoginLabel');
+        const chatBadge = document.getElementById('chatBadge');
+        const friendsBadge = document.getElementById('friendsBadge');
+
+        const windows = {
+            vault: document.getElementById('window-vault'),
+            links: document.getElementById('window-links'),
+            chat: document.getElementById('window-chat'),
+            friends: document.getElementById('window-friends'),
+            ai: document.getElementById('window-ai'),
+            settings: document.getElementById('window-settings')
+        };
+        const windowStates = { vault: false, links: false, chat: false, friends: false, ai: false, settings: false };
+
+        // Window geometry state for restore after maximize
+        const windowGeometry = {};
+
+        // Vault
+        const gameGrid = document.getElementById('gameGrid');
+        const gameCountSpan = document.getElementById('gameCount');
+        const addPanel = document.getElementById('addPanel');
+        const addGameBtn = document.getElementById('addGameBtn');
+        const ownerActions = document.getElementById('ownerActions');
+        const guestNotice = document.getElementById('guestNotice');
+        const guestLoginLink = document.getElementById('guestLoginLink');
+        const guestRegisterLink = document.getElementById('guestRegisterLink');
+        const cancelAddBtn = document.getElementById('cancelAddBtn');
+        const saveGameBtn = document.getElementById('saveGameBtn');
+        const gameTitleInput = document.getElementById('gameTitleInput');
+        const gameImageInput = document.getElementById('gameImageInput');
+        const gameHtmlInput = document.getElementById('gameHtmlInput');
+        const gameIconInput = document.getElementById('gameIconInput');
+        const gameDescInput = document.getElementById('gameDescInput');
+
+        // Links
+        const linksContent = document.getElementById('linksContent');
+        const linkImageInput = document.getElementById('linkImageInput');
+        const linkTitleInput = document.getElementById('linkTitleInput');
+        const linkUrlInput = document.getElementById('linkUrlInput');
+        const addLinkBtn = document.getElementById('addLinkBtn');
+
+        // Login
+        const loginOverlay = document.getElementById('loginOverlay');
+        const loginTitle = document.getElementById('loginTitle');
+        const loginHeading = document.getElementById('loginHeading');
+        const loginSubtext = document.getElementById('loginSubtext');
+        const loginUsername = document.getElementById('loginUsername');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginConfirmPassword = document.getElementById('loginConfirmPassword');
+        const confirmPasswordField = document.getElementById('confirmPasswordField');
+        const loginError = document.getElementById('loginError');
+        const loginSuccess = document.getElementById('loginSuccess');
+        const cancelLoginBtn = document.getElementById('cancelLoginBtn');
+        const submitLoginBtn = document.getElementById('submitLoginBtn');
+        const loginSwitchText = document.getElementById('loginSwitchText');
+        const loginSwitchLink = document.getElementById('loginSwitchLink');
+        const closeLoginBtn = document.getElementById('closeLoginBtn');
+        const settingsLoginBtn = document.getElementById('settingsLoginBtn');
+        const settingsLogoutBtn = document.getElementById('settingsLogoutBtn');
+        const settingsAccountStatus = document.getElementById('settingsAccountStatus');
+
+        // Game modal
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalGameTitle = document.getElementById('modalGameTitle');
+        const gameIframe = document.getElementById('gameIframe');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+
+        // AI
+        const aiMessages = document.getElementById('aiMessages');
+        const aiInput = document.getElementById('aiInput');
+        const aiSendBtn = document.getElementById('aiSendBtn');
+        const aiImageBtn = document.getElementById('aiImageBtn');
+        const aiImageFile = document.getElementById('aiImageFile');
+        const aiImagePreview = document.getElementById('aiImagePreview');
+        const aiPreviewImg = document.getElementById('aiPreviewImg');
+        const removeImgBtn = document.getElementById('removeImgBtn');
+
+        // Chat
+        const chatTabs = document.querySelectorAll('.chat-tab');
+        const chatList = document.getElementById('chatList');
+        const chatTitle = document.getElementById('chatTitle');
+        const chatMembers = document.getElementById('chatMembers');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const chatSendBtn = document.getElementById('chatSendBtn');
+        const petPanel = document.getElementById('petPanel');
+        const petIcon = document.getElementById('petIcon');
+        const petName = document.getElementById('petName');
+        const petStreak = document.getElementById('petStreak');
+        const petProgressBar = document.getElementById('petProgressBar');
+        const chatPetDisplay = document.getElementById('chatPetDisplay');
+        const newGroupBtn = document.getElementById('newGroupBtn');
+        const globalWarning = document.getElementById('globalWarning');
+
+        // Friends
+        const friendUsernameInput = document.getElementById('friendUsernameInput');
+        const addFriendBtn = document.getElementById('addFriendBtn');
+        const friendsContent = document.getElementById('friendsContent');
+
+        // Settings
+        const themeGrid = document.getElementById('themeGrid');
+        const wallpaperUploadArea = document.getElementById('wallpaperUploadArea');
+        const wallpaperFileInput = document.getElementById('wallpaperFileInput');
+        const customWallpaperPreview = document.getElementById('customWallpaperPreview');
+        const customWallpaperImg = document.getElementById('customWallpaperImg');
+        const removeWallpaperBtn = document.getElementById('removeWallpaperBtn');
+        const cursorPreviewImg = document.getElementById('cursorPreviewImg');
+        const cursorSizeSlider = document.getElementById('cursorSizeSlider');
+        const cursorSizeLabel = document.getElementById('cursorSizeLabel');
+        const applyCursorBtn = document.getElementById('applyCursorBtn');
+        const resetCursorBtn = document.getElementById('resetCursorBtn');
+        const uploadCursorBtn = document.getElementById('uploadCursorBtn');
+        const cursorFileInput = document.getElementById('cursorFileInput');
+
+        // Group modal
+        const groupOverlay = document.getElementById('groupOverlay');
+        const groupNameInput = document.getElementById('groupNameInput');
+        const groupFriendsList = document.getElementById('groupFriendsList');
+        const groupError = document.getElementById('groupError');
+        const closeGroupBtn = document.getElementById('closeGroupBtn');
+        const cancelGroupBtn = document.getElementById('cancelGroupBtn');
+        const createGroupBtn = document.getElementById('createGroupBtn');
+
+        const toast = document.getElementById('toast');
+
+        // ========== UTILITY ==========
+        function todayStr() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function dmKey(a, b) {
+            return [a, b].sort().join('|');
+        }
+
+        function groupKey(groupId) {
+            return 'group:' + groupId;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2800);
+        }
+
+        // ========== CUSTOM CURSOR ==========
+        function applyCursorFromSettings() {
+            const url = customCursorData.url;
+            const size = customCursorData.size || 32;
+            if (url) {
+                // Apply to body and all elements
+                const style = document.createElement('style');
+                style.id = 'custom-cursor-style';
+                style.textContent = `
+                    html, body, *, *::before, *::after {
+                        cursor: url('${url}') ${size} ${size}, auto !important;
+                    }
+                    input, textarea, button, a, .dock-item, .chat-tab, .light, .btn, .theme-option, .game-card, .play-btn, .chat-list-item, .friend-item, .link-item, .group-friend-check {
+                        cursor: url('${url}') ${size} ${size}, pointer !important;
+                    }
+                `;
+                const existing = document.getElementById('custom-cursor-style');
+                if (existing) existing.remove();
+                document.head.appendChild(style);
+                cursorPreviewImg.src = url;
+                cursorSizeSlider.value = size;
+                cursorSizeLabel.textContent = size + 'px';
+            }
+        }
+
+        function resetCursor() {
+            const style = document.getElementById('custom-cursor-style');
+            if (style) style.remove();
+            customCursorData = { url: 'https://i.imgur.com/8Q9Z5pC.png', size: 32 };
+            saveCustomCursor(customCursorData);
+            cursorPreviewImg.src = customCursorData.url;
+            cursorSizeSlider.value = 32;
+            cursorSizeLabel.textContent = '32px';
+            showToast('🖱️ Cursor reset to default.');
+        }
+
+        // Load cursor on start
+        applyCursorFromSettings();
+
+        // Cursor slider
+        cursorSizeSlider.addEventListener('input', (e) => {
+            cursorSizeLabel.textContent = e.target.value + 'px';
+        });
+
+        applyCursorBtn.addEventListener('click', () => {
+            customCursorData.size = parseInt(cursorSizeSlider.value, 10);
+            saveCustomCursor(customCursorData);
+            applyCursorFromSettings();
+            showToast('🖱️ Cursor updated!');
+        });
+
+        resetCursorBtn.addEventListener('click', resetCursor);
+
+        uploadCursorBtn.addEventListener('click', () => cursorFileInput.click());
+        cursorFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    customCursorData.url = ev.target.result;
+                    saveCustomCursor(customCursorData);
+                    applyCursorFromSettings();
+                    showToast('🖱️ Custom cursor image uploaded!');
+                };
+                reader.readAsDataURL(file);
+            }
+            cursorFileInput.value = '';
+        });
+
+        // ========== CLOCK & BATTERY ==========
+        function updateClock() {
+            const now = new Date();
+            tbClock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function updateBattery() {
+            if (navigator.getBattery) {
+                navigator.getBattery().then(batt => {
+                    function refresh() {
+                        const pct = Math.round(batt.level * 100);
+                        batteryFill.style.width = pct + '%';
+                        batteryText.textContent = pct + '%';
+                        batteryFill.classList.remove('low', 'medium');
+                        if (pct <= 20) batteryFill.classList.add('low');
+                        else if (pct <= 50) batteryFill.classList.add('medium');
+                    }
+                    refresh();
+                    batt.addEventListener('levelchange', refresh);
+                    batt.addEventListener('chargingchange', refresh);
+                }).catch(() => {
+                    batteryFill.style.width = '100%';
+                    batteryText.textContent = '100%';
+                });
+            } else {
+                batteryFill.style.width = '100%';
+                batteryText.textContent = '100%';
+            }
+        }
+        updateBattery();
+
+        // ========== WALLPAPER ==========
+        function applyTheme(theme) {
+            currentTheme = theme;
+
+            if (customWallpaperData) {
+                desktop.style.backgroundImage = 'none';
+                customWallpaperData = null;
+                saveCustomWallpaper(null);
+                customWallpaperPreview.classList.remove('show');
+                customWallpaperImg.src = '';
+            }
+
+            if (theme.name === 'Rainy Torii (Default)') {
+                wallpaperVideo.style.display = 'block';
+                wallpaperVideo.style.opacity = '1';
+                desktop.style.background = '#0a0e14';
+            } else {
+                wallpaperVideo.style.display = 'none';
+                desktop.style.background = theme.bg;
+            }
+
+            document.querySelectorAll('.theme-option').forEach(el => {
+                el.classList.toggle('active', el.dataset.themeName === theme.name);
+            });
+        }
+
+        function applyCustomWallpaper(dataUrl) {
+            customWallpaperData = dataUrl;
+            saveCustomWallpaper(dataUrl);
+            wallpaperVideo.style.display = 'none';
+            desktop.style.backgroundImage = `url(${dataUrl})`;
+            desktop.style.backgroundSize = 'cover';
+            desktop.style.backgroundPosition = 'center';
+            document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
+            customWallpaperImg.src = dataUrl;
+            customWallpaperPreview.classList.add('show');
+        }
+
+        function removeCustomWallpaper() {
+            customWallpaperData = null;
+            saveCustomWallpaper(null);
+            desktop.style.backgroundImage = 'none';
+            customWallpaperPreview.classList.remove('show');
+            customWallpaperImg.src = '';
+            applyTheme(themes[0]);
+        }
+
+        function renderThemes() {
+            themeGrid.innerHTML = themes.map(t => {
+                let swatchHtml;
+                if (t.name === 'Rainy Torii (Default)') {
+                    swatchHtml = `<div style="background:#1a2634; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:linear-gradient(180deg, #2a3a4a 0%, #1a2634 100%);"></div><div style="position:absolute; bottom:0; left:0; right:0; height:40%; background:linear-gradient(0deg, #3a1a1a 0%, transparent 100%);"></div></div>`;
+                } else {
+                    swatchHtml = `<div style="background:${t.blobs[0]}"></div><div style="background:${t.blobs[1]}"></div><div style="background:${t.blobs[2]}"></div><div style="background:${t.blobs[3]}"></div>`;
+                }
+                return `
+                    <div class="theme-option ${t.name === currentTheme.name && !customWallpaperData ? 'active' : ''}" data-theme-name="${t.name}">
+                        <div class="theme-swatch">${swatchHtml}</div>
+                        <span class="theme-name">${t.name}</span>
+                    </div>
+                `;
+            }).join('');
+
+            themeGrid.querySelectorAll('.theme-option').forEach(el => {
+                el.addEventListener('click', () => {
+                    const theme = themes.find(t => t.name === el.dataset.themeName);
+                    if (theme) applyTheme(theme);
+                });
+            });
+        }
+
+        wallpaperUploadArea.addEventListener('click', () => wallpaperFileInput.click());
+        wallpaperFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast('⚠️ Image too large (max 10MB)');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    applyCustomWallpaper(ev.target.result);
+                    showToast('🖼️ Custom wallpaper applied!');
+                };
+                reader.readAsDataURL(file);
+            }
+            wallpaperFileInput.value = '';
+        });
+
+        removeWallpaperBtn.addEventListener('click', () => {
+            removeCustomWallpaper();
+            showToast('🗑️ Custom wallpaper removed — back to video');
+        });
+
+        // ========== WINDOW MANAGEMENT ==========
+        function openWindow(appName) {
+            const win = windows[appName];
+            if (!win) return;
+            win.classList.add('open');
+            windowStates[appName] = true;
+            document.querySelector(`.dock-item[data-app="${appName}"]`).classList.add('open');
+
+            Object.values(windows).forEach(w => w.style.zIndex = '100');
+            win.style.zIndex = '200';
+
+            const rect = win.getBoundingClientRect();
+            if (rect.top < 30) win.style.top = '60px';
+            if (rect.left < 0) win.style.left = '60px';
+        }
+
+        function closeWindow(appName) {
+            const win = windows[appName];
+            if (!win) return;
+            win.classList.remove('open');
+            windowStates[appName] = false;
+            document.querySelector(`.dock-item[data-app="${appName}"]`).classList.remove('open');
+            // Restore if was maximized
+            if (win.classList.contains('maximized')) {
+                win.classList.remove('maximized');
+                const g = windowGeometry[appName];
+                if (g) {
+                    win.style.top = g.top;
+                    win.style.left = g.left;
+                    win.style.width = g.width;
+                    win.style.height = g.height;
+                }
+            }
+        }
+
+        function minimizeWindow(appName) {
+            const win = windows[appName];
+            if (!win) return;
+            win.classList.remove('open');
+            windowStates[appName] = false;
+            document.querySelector(`.dock-item[data-app="${appName}"]`).classList.remove('open');
+        }
+
+        function maximizeWindow(appName) {
+            const win = windows[appName];
+            if (!win) return;
+            if (!win.classList.contains('maximized')) {
+                // Save current geometry
+                windowGeometry[appName] = {
+                    top: win.style.top,
+                    left: win.style.left,
+                    width: win.style.width,
+                    height: win.style.height
+                };
+                win.classList.add('maximized');
+                win.style.top = '32px';
+                win.style.left = '0px';
+                win.style.width = '100vw';
+                win.style.height = 'calc(100vh - 32px)';
+                win.style.borderRadius = '0';
+                win.style.zIndex = '500';
+            } else {
+                // Restore
+                win.classList.remove('maximized');
+                const g = windowGeometry[appName];
+                if (g) {
+                    win.style.top = g.top || '60px';
+                    win.style.left = g.left || '60px';
+                    win.style.width = g.width || '720px';
+                    win.style.height = g.height || '540px';
+                }
+                win.style.borderRadius = '12px';
+                win.style.zIndex = '200';
+            }
+        }
+
+        dockItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const appName = item.dataset.app;
+                if (appName === 'login') {
+                    if (currentUser) logout();
+                    else openLoginModal('signin');
+                    return;
+                }
+                if (windowStates[appName]) closeWindow(appName);
+                else openWindow(appName);
+            });
+        });
+
+        // Attach window controls
+        document.querySelectorAll('[data-close]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeWindow(btn.dataset.close);
+            });
+        });
+        document.querySelectorAll('[data-minimize]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                minimizeWindow(btn.dataset.minimize);
+            });
+        });
+        document.querySelectorAll('[data-maximize]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                maximizeWindow(btn.dataset.maximize);
+            });
+        });
+
+        // Make windows draggable
+        Object.keys(windows).forEach(appName => {
+            const titleBar = document.getElementById(`titleBar-${appName}`);
+            const win = windows[appName];
+            if (!titleBar || !win) return;
+
+            let isDragging = false, startX, startY, startLeft, startTop;
+
+            titleBar.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('light')) return;
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = win.offsetLeft;
+                startTop = win.offsetTop;
+                win.style.zIndex = '300';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                if (win.classList.contains('maximized')) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                win.style.left = Math.max(0, Math.min(window.innerWidth - 100, startLeft + dx)) + 'px';
+                win.style.top = Math.max(0, Math.min(window.innerHeight - 100, startTop + dy)) + 'px';
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+
+        // ========== AUTH ==========
+        function updateAuthUI() {
+            const loggedIn = !!currentUser;
+            if (loggedIn) {
+                if (isOwner) {
+                    tbOwnerStatus.textContent = '🔓 Ryan (owner)';
+                    tbOwnerStatus.classList.remove('guest');
+                    tbOwnerStatus.style.background = 'rgba(0, 122, 255, 0.35)';
+                } else {
+                    tbOwnerStatus.textContent = `👤 ${currentUser}`;
+                    tbOwnerStatus.classList.remove('guest');
+                    tbOwnerStatus.style.background = 'rgba(52, 199, 89, 0.35)';
+                }
+                dockLoginIcon.textContent = '🔓';
+                dockLoginLabel.textContent = 'Sign Out';
+                settingsAccountStatus.textContent = isOwner
+                    ? `Signed in as ${currentUser} (Owner)`
+                    : `Signed in as ${currentUser} (Player)`;
+                settingsLogoutBtn.style.display = 'flex';
+                settingsLoginBtn.style.display = 'none';
+                ownerActions.style.display = isOwner ? 'block' : 'none';
+                guestNotice.style.display = 'none';
+            } else {
+                tbOwnerStatus.textContent = '🔒 Guest';
+                tbOwnerStatus.classList.add('guest');
+                tbOwnerStatus.style.background = 'rgba(255, 255, 255, 0.12)';
+                dockLoginIcon.textContent = '🔑';
+                dockLoginLabel.textContent = 'Sign In';
+                settingsAccountStatus.textContent = 'Not signed in.';
+                settingsLogoutBtn.style.display = 'none';
+                settingsLoginBtn.style.display = 'flex';
+                ownerActions.style.display = 'none';
+                guestNotice.style.display = 'block';
+                addPanel.classList.remove('show');
+            }
+            renderGames();
+            updateChatUI();
+            renderFriends();
+            updateBadges();
+            renderLinks();
+        }
+
+        function openLoginModal(mode) {
+            loginMode = mode || 'signin';
+            loginError.textContent = '';
+            loginSuccess.textContent = '';
+            loginUsername.value = '';
+            loginPassword.value = '';
+            loginConfirmPassword.value = '';
+
+            if (loginMode === 'signin') {
+                loginTitle.textContent = 'Sign In';
+                loginHeading.textContent = '🔐 Sign in';
+                loginSubtext.textContent = 'Sign in to your LinkVault account';
+                loginSwitchText.textContent = "Don't have an account? ";
+                loginSwitchLink.textContent = 'Create one';
+                submitLoginBtn.textContent = 'Sign In';
+                confirmPasswordField.style.display = 'none';
+            } else {
+                loginTitle.textContent = 'Create Account';
+                loginHeading.textContent = '📝 Create account';
+                loginSubtext.textContent = 'Join LinkVault — it\'s free!';
+                loginSwitchText.textContent = 'Already have an account? ';
+                loginSwitchLink.textContent = 'Sign in';
+                submitLoginBtn.textContent = 'Create Account';
+                confirmPasswordField.style.display = 'block';
+            }
+
+            loginOverlay.classList.add('active');
+            loginUsername.focus();
+        }
+
+        function closeLoginModal() {
+            loginOverlay.classList.remove('active');
+            loginError.textContent = '';
+            loginSuccess.textContent = '';
+        }
+
+        function switchLoginMode() {
+            openLoginModal(loginMode === 'signin' ? 'register' : 'signin');
+        }
+
+        function submitAuth() {
+            const user = loginUsername.value.trim();
+            const pass = loginPassword.value;
+            const confirm = loginConfirmPassword.value;
+
+            loginError.textContent = '';
+            loginSuccess.textContent = '';
+
+            if (!user) { loginError.textContent = 'Please enter a username.'; return; }
+            if (user.length < 2) { loginError.textContent = 'Username must be at least 2 characters.'; return; }
+            if (!pass) { loginError.textContent = 'Please enter a password.'; return; }
+
+            if (loginMode === 'register') {
+                if (pass.length < 4) { loginError.textContent = 'Password must be at least 4 characters.'; return; }
+                if (pass !== confirm) { loginError.textContent = 'Passwords do not match.'; return; }
+                if (users[user]) { loginError.textContent = 'That username is already taken.'; return; }
+                if (user === OWNER_USERNAME) { loginError.textContent = 'That username is reserved.'; return; }
+                users[user] = { password: pass, isOwner: false };
+                saveUsers();
+                loginSuccess.textContent = '✅ Account created! Signing you in...';
+                setTimeout(() => doLogin(user, false), 600);
+            } else {
+                if (user === OWNER_USERNAME) {
+                    if (pass === OWNER_PASSWORD) doLogin(user, true);
+                    else { loginError.textContent = '❌ Incorrect owner password.'; loginPassword.value = ''; loginPassword.focus(); }
+                    return;
+                }
+                if (!users[user]) { loginError.textContent = '❌ No account found with that username.'; return; }
+                if (users[user].password !== pass) { loginError.textContent = '❌ Incorrect password.'; loginPassword.value = ''; loginPassword.focus(); return; }
+                doLogin(user, users[user].isOwner === true);
+            }
+        }
+
+        function doLogin(username, owner) {
+            currentUser = username;
+            isOwner = owner;
+            session = { username, isOwner: owner };
+            saveSession(session);
+            loginOverlay.classList.remove('active');
+            loginUsername.value = '';
+            loginPassword.value = '';
+            loginConfirmPassword.value = '';
+            updateAuthUI();
+            if (owner) {
+                showToast('✅ Signed in as Ryan (Owner)');
+                openWindow('vault');
+            } else {
+                showToast(`✅ Welcome, ${username}!`);
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            isOwner = false;
+            session = null;
+            saveSession(null);
+            updateAuthUI();
+            showToast('👋 Signed out');
+        }
+
+        cancelLoginBtn.addEventListener('click', closeLoginModal);
+        closeLoginBtn.addEventListener('click', closeLoginModal);
+        submitLoginBtn.addEventListener('click', submitAuth);
+        loginSwitchLink.addEventListener('click', switchLoginMode);
+        [loginUsername, loginPassword, loginConfirmPassword].forEach(input => {
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAuth(); });
+        });
+        loginOverlay.addEventListener('click', (e) => { if (e.target === loginOverlay) closeLoginModal(); });
+
+        settingsLoginBtn.addEventListener('click', () => {
+            if (currentUser) logout();
+            else openLoginModal('signin');
+        });
+        settingsLogoutBtn.addEventListener('click', logout);
+
+        guestLoginLink.addEventListener('click', (e) => { e.preventDefault(); openLoginModal('signin'); });
+        guestRegisterLink.addEventListener('click', (e) => { e.preventDefault(); openLoginModal('register'); });
+
+        // ========== LINKS ==========
+        function renderLinks() {
+            if (!linksContent) return;
+            if (links.length === 0) {
+                linksContent.innerHTML = `<div class="friends-empty" style="padding: 30px;"><div class="big-icon">🔗</div><div>No links yet. Add one above!</div></div>`;
+                return;
+            }
+            linksContent.innerHTML = links.map(link => `
+                <div class="link-item" data-link-id="${link.id}">
+                    ${link.img ? `<img class="link-img" src="${escapeHtml(link.img)}" alt="icon" onerror="this.style.display='none'">` : `<div class="link-img" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🔗</div>`}
+                    <div class="link-info">
+                        <div class="link-title">${escapeHtml(link.title)}</div>
+                        <a class="link-url" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.url)}</a>
+                    </div>
+                    <button class="link-delete" data-link-delete="${link.id}" title="Delete link">✕</button>
+                </div>
+            `).join('');
+
+            linksContent.querySelectorAll('[data-link-delete]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const linkId = btn.dataset.linkDelete;
+                    if (confirm('Remove this link?')) {
+                        links = links.filter(l => l.id !== linkId);
+                        saveLinks();
+                        renderLinks();
+                        showToast('🗑️ Link removed');
+                    }
+                });
+            });
+        }
+
+        function addNewLink() {
+            if (!currentUser) { showToast('Sign in to add links'); openLoginModal('signin'); return; }
+            const title = linkTitleInput.value.trim();
+            const url = linkUrlInput.value.trim();
+            const img = linkImageInput.value.trim();
+
+            if (!title) { showToast('⚠️ Enter a link title'); return; }
+            if (!url) { showToast('⚠️ Enter a URL'); return; }
+
+            let finalUrl = url;
+            if (!/^https?:\/\//i.test(finalUrl)) {
+                finalUrl = 'https://' + finalUrl;
+            }
+
+            links.push({
+                id: 'lnk' + Date.now() + Math.random().toString(36).substr(2, 5),
+                title,
+                url: finalUrl,
+                img: img || null,
+                addedBy: currentUser,
+                addedAt: Date.now()
+            });
+            saveLinks();
+            renderLinks();
+            linkTitleInput.value = '';
+            linkUrlInput.value = '';
+            linkImageInput.value = '';
+            showToast('✅ Link added!');
+        }
+
+        addLinkBtn.addEventListener('click', addNewLink);
+        [linkTitleInput, linkUrlInput, linkImageInput].forEach(inp => {
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') addNewLink();
+            });
+        });
+
+        // ========== GAME VAULT ==========
+        function renderGames() {
+            if (!gameGrid) return;
+            if (games.length === 0) {
+                gameGrid.innerHTML = `<div class="no-games">✨ No games yet. ${isOwner ? 'Click "Add Game" below!' : 'Owner Ryan can add games.'}</div>`;
+                gameCountSpan.textContent = '0 games';
+                return;
+            }
+
+            let html = '';
+            games.forEach(game => {
+                let iconHtml;
+                if (game.image) {
+                    iconHtml = `<div class="game-icon"><img src="${escapeHtml(game.image)}" alt="game" onerror="this.parentElement.textContent='${game.icon || '🎮'}'"></div>`;
+                } else {
+                    iconHtml = `<div class="game-icon">${game.icon || '🎮'}</div>`;
+                }
+                html += `
+                    <div class="game-card" data-game-id="${game.id}">
+                        ${isOwner ? `<button class="delete-btn show" data-delete-id="${game.id}" title="Remove game for everyone">✕</button>` : ''}
+                        ${iconHtml}
+                        <div class="game-title">${escapeHtml(game.title)}</div>
+                        <div class="game-meta">
+                            <span class="play-badge">HTML5</span>
+                            <span>${escapeHtml(game.description || 'play now')}</span>
+                        </div>
+                        <button class="play-btn" data-game-id="${game.id}">▶ Play now</button>
+                    </div>
+                `;
+            });
+            gameGrid.innerHTML = html;
+            gameCountSpan.textContent = `${games.length} game${games.length !== 1 ? 's' : ''}`;
+
+            document.querySelectorAll('.play-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const game = games.find(g => g.id === btn.dataset.gameId);
+                    if (game) openGameModal(game);
+                });
+            });
+
+            document.querySelectorAll('[data-delete-id]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!isOwner) { showToast('⛔ Only Ryan can remove games'); return; }
+                    const game = games.find(g => g.id === btn.dataset.deleteId);
+                    if (game && confirm(`Remove "${game.title}" for everyone? This cannot be undone.`)) {
+                        games = games.filter(g => g.id !== game.id);
+                        saveGames();
+                        renderGames();
+                        showToast(`🗑️ Removed "${game.title}" for everyone`);
+                    }
+                });
+            });
+        }
+
+        function addGameFromForm() {
+            if (!isOwner) { showToast('⛔ Only Ryan (owner) can add games'); openLoginModal('signin'); return; }
+
+            const title = gameTitleInput.value.trim();
+            const image = gameImageInput.value.trim();
+            const html = gameHtmlInput.value.trim();
+            const icon = gameIconInput.value.trim() || '🎮';
+            const description = gameDescInput.value.trim() || 'new game';
+
+            if (!title) { showToast('⚠️ Enter a game title'); return; }
+            if (!html) { showToast('⚠️ Paste HTML code'); return; }
+            if (!html.trim().startsWith('<')) { showToast('⚠️ HTML must start with "<"'); return; }
+
+            games.push({
+                id: 'g' + Date.now() + Math.random().toString(36).substr(2, 6),
+                title,
+                image: image || null,
+                html,
+                icon,
+                description
+            });
+            saveGames();
+            renderGames();
+            gameTitleInput.value = '';
+            gameImageInput.value = '';
+            gameHtmlInput.value = '';
+            gameIconInput.value = '🎮';
+            gameDescInput.value = '';
+            addPanel.classList.remove('show');
+            showToast('✅ Game added & saved for everyone!');
+        }
+
+        addGameBtn.addEventListener('click', () => {
+            if (!isOwner) openLoginModal('signin');
+            else addPanel.classList.toggle('show');
+        });
+        cancelAddBtn.addEventListener('click', () => addPanel.classList.remove('show'));
+        saveGameBtn.addEventListener('click', addGameFromForm);
+
+        // ========== GAME MODAL ==========
+        function openGameModal(game) {
+            modalGameTitle.textContent = game.icon + ' ' + game.title;
+            gameIframe.srcdoc = game.html || '';
+            modalOverlay.classList.add('active');
+        }
+
+        function closeGameModal() {
+            modalOverlay.classList.remove('active');
+            gameIframe.srcdoc = '';
+        }
+
+        closeModalBtn.addEventListener('click', closeGameModal);
+        modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeGameModal(); });
+
+        // ========== CHAT LOGIC ==========
+        function updateChatUI() {
+            if (!currentUser) {
+                chatInput.disabled = true;
+                chatSendBtn.disabled = true;
+                chatInput.placeholder = 'Sign in to chat...';
+                chatMessages.innerHTML = `<div class="chat-empty"><div class="big-icon">💬</div><div>Sign in to chat with people around the world!</div></div>`;
+                chatList.innerHTML = '';
+                chatMembers.textContent = '';
+                petPanel.style.display = 'none';
+                chatPetDisplay.textContent = '';
+                newGroupBtn.style.display = 'none';
+                globalWarning.style.display = 'none';
+                return;
+            }
+
+            chatInput.disabled = false;
+            chatSendBtn.disabled = false;
+            chatInput.placeholder = 'Type a message...';
+
+            newGroupBtn.style.display = (activeChatTab === 'dms') ? 'flex' : 'none';
+            globalWarning.style.display = (activeChatTab === 'global') ? 'flex' : 'none';
+
+            renderChatList();
+
+            if (activeChatTab === 'global') {
+                chatTitle.textContent = '🌍 Global Chat';
+                chatMembers.textContent = 'Everyone';
+                chatPetDisplay.textContent = '';
+                petPanel.style.display = 'none';
+                renderGlobalMessages();
+            } else if (activeChatTab === 'dms') {
+                if (activeGroupId && groups[activeGroupId]) {
+                    const g = groups[activeGroupId];
+                    chatTitle.textContent = `👥 ${g.name}`;
+                    chatMembers.textContent = g.members.length + ' members';
+                    chatPetDisplay.textContent = '';
+                    petPanel.style.display = 'none';
+                    renderGroupMessages(activeGroupId);
+                } else if (activeDmFriend) {
+                    chatTitle.textContent = `💌 ${activeDmFriend}`;
+                    chatMembers.textContent = 'Direct message';
+                    renderDmMessages();
+                    renderPetPanel(activeDmFriend);
+                } else {
+                    chatTitle.textContent = '💌 Direct Messages';
+                    chatMembers.textContent = '';
+                    chatPetDisplay.textContent = '';
+                    petPanel.style.display = 'none';
+                    chatMessages.innerHTML = `<div class="chat-empty"><div class="big-icon">💌</div><div>Select a friend or group to start chatting!</div></div>`;
+                }
+            }
+        }
+
+        function renderChatList() {
+            if (!currentUser) { chatList.innerHTML = ''; return; }
+
+            if (activeChatTab === 'global') {
+                chatList.innerHTML = `
+                    <div class="chat-list-item active" data-chat-global="true">
+                        <div class="chat-avatar" style="background: #34c759;">🌍</div>
+                        <div class="chat-info">
+                            <div class="chat-name">Global Chat</div>
+                            <div class="chat-preview">${globalChat.length} messages</div>
+                        </div>
+                    </div>
+                `;
+                chatList.querySelector('[data-chat-global]').addEventListener('click', () => {
+                    activeChatTab = 'global';
+                    activeDmFriend = null;
+                    activeGroupId = null;
+                    updateChatUI();
+                });
+            } else {
+                const myFriends = friends[currentUser] || [];
+                const myGroups = Object.entries(groups).filter(([gid, g]) => g.members.includes(currentUser));
+
+                let html = '';
+
+                if (myGroups.length > 0) {
+                    html += `<div style="padding: 4px 6px; font-size: 10px; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px;">Groups</div>`;
+                    myGroups.forEach(([gid, g]) => {
+                        const key = groupKey(gid);
+                        const thread = dms[key] || [];
+                        const lastMsg = thread[thread.length - 1];
+                        const isActive = activeGroupId === gid;
+                        html += `
+                            <div class="chat-list-item ${isActive ? 'active' : ''}" data-group-id="${gid}">
+                                <div class="chat-avatar group">👥</div>
+                                <div class="chat-info">
+                                    <div class="chat-name">${escapeHtml(g.name)}</div>
+                                    <div class="chat-preview">${lastMsg ? escapeHtml(lastMsg.text.slice(0, 22)) : 'No messages yet'}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (myFriends.length > 0) {
+                    html += `<div style="padding: 4px 6px; font-size: 10px; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px;">Friends</div>`;
+                    myFriends.forEach(f => {
+                        const key = dmKey(currentUser, f);
+                        const thread = dms[key] || [];
+                        const lastMsg = thread[thread.length - 1];
+                        const streak = streaks[key] || { days: 0 };
+                        const petEmoji = getPetEmoji(streak.days);
+                        const isActive = activeDmFriend === f && !activeGroupId;
+                        html += `
+                            <div class="chat-list-item ${isActive ? 'active' : ''}" data-dm-friend="${f}">
+                                <div class="chat-avatar">${f.charAt(0).toUpperCase()}</div>
+                                <div class="chat-info">
+                                    <div class="chat-name">${escapeHtml(f)}</div>
+                                    <div class="chat-preview">${lastMsg ? escapeHtml(lastMsg.text.slice(0, 22)) : 'No messages yet'}</div>
+                                </div>
+                                <div class="chat-streak">${petEmoji} ${streak.days}</div>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (myFriends.length === 0 && myGroups.length === 0) {
+                    html = `<div style="padding: 16px; text-align: center; color: #8e8e93; font-size: 12px;">No friends or groups yet. Add friends in the Friends app or create a group!</div>`;
+                }
+
+                chatList.innerHTML = html;
+
+                chatList.querySelectorAll('[data-group-id]').forEach(el => {
+                    el.addEventListener('click', () => {
+                        activeChatTab = 'dms';
+                        activeGroupId = el.dataset.groupId;
+                        activeDmFriend = null;
+                        updateChatUI();
+                    });
+                });
+
+                chatList.querySelectorAll('[data-dm-friend]').forEach(el => {
+                    el.addEventListener('click', () => {
+                        activeChatTab = 'dms';
+                        activeDmFriend = el.dataset.dmFriend;
+                        activeGroupId = null;
+                        updateChatUI();
+                    });
+                });
+            }
+        }
+
+        function renderGlobalMessages() {
+            if (globalChat.length === 0) {
+                chatMessages.innerHTML = `<div class="chat-empty"><div class="big-icon">🌍</div><div>Be the first to say something in global chat!</div></div>`;
+                return;
+            }
+            chatMessages.innerHTML = globalChat.slice(-100).map(m => {
+                const isMine = m.user === currentUser;
+                return `
+                    <div class="chat-msg ${isMine ? 'mine' : 'theirs'}">
+                        ${!isMine ? `<div class="msg-sender">${escapeHtml(m.user)}</div>` : ''}
+                        <div class="msg-bubble">${escapeHtml(m.text)}</div>
+                        <div class="msg-time">${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                    </div>
+                `;
+            }).join('');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function renderDmMessages() {
+            if (!currentUser || !activeDmFriend) return;
+            const key = dmKey(currentUser, activeDmFriend);
+            const thread = dms[key] || [];
+            if (thread.length === 0) {
+                chatMessages.innerHTML = `<div class="chat-empty"><div class="big-icon">💌</div><div>No messages yet. Say hi to ${escapeHtml(activeDmFriend)}!</div></div>`;
+                return;
+            }
+            chatMessages.innerHTML = thread.map(m => {
+                const isMine = m.from === currentUser;
+                return `
+                    <div class="chat-msg ${isMine ? 'mine' : 'theirs'}">
+                        <div class="msg-sender">${isMine ? 'You' : escapeHtml(m.from)}</div>
+                        <div class="msg-bubble">${escapeHtml(m.text)}</div>
+                        <div class="msg-time">${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                    </div>
+                `;
+            }).join('');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function renderGroupMessages(groupId) {
+            if (!currentUser || !groupId) return;
+            const g = groups[groupId];
+            if (!g) return;
+            const key = groupKey(groupId);
+            const thread = dms[key] || [];
+            if (thread.length === 0) {
+                chatMessages.innerHTML = `<div class="chat-empty"><div class="big-icon">👥</div><div>No messages yet in "${escapeHtml(g.name)}". Say hi!</div></div>`;
+                return;
+            }
+            chatMessages.innerHTML = thread.map(m => {
+                const isMine = m.from === currentUser;
+                return `
+                    <div class="chat-msg ${isMine ? 'mine' : 'theirs'}">
+                        <div class="msg-sender">${isMine ? 'You' : escapeHtml(m.from)}</div>
+                        <div class="msg-bubble">${escapeHtml(m.text)}</div>
+                        <div class="msg-time">${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                    </div>
+                `;
+            }).join('');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function getPetEmoji(days) {
+            if (days >= 30) return '🐉';
+            if (days >= 21) return '🐲';
+            if (days >= 14) return '🦊';
+            if (days >= 7) return '🐺';
+            if (days >= 5) return '🐕';
+            if (days >= 3) return '🐈';
+            if (days >= 1) return '🐣';
+            return '🥚';
+        }
+
+        function getPetName(days) {
+            if (days >= 30) return 'Legendary Dragon';
+            if (days >= 21) return 'Mystic Dragon';
+            if (days >= 14) return 'Fox Companion';
+            if (days >= 7) return 'Wolf Pup';
+            if (days >= 5) return 'Loyal Dog';
+            if (days >= 3) return 'Curious Cat';
+            if (days >= 1) return 'Hatchling';
+            return 'Mystery Egg';
+        }
+
+        function renderPetPanel(friendName) {
+            if (!currentUser || !friendName) { petPanel.style.display = 'none'; return; }
+            const key = dmKey(currentUser, friendName);
+            const streak = streaks[key] || { days: 0, lastDate: null, lastFrom: null };
+            const petEmoji = getPetEmoji(streak.days);
+            const petNameStr = getPetName(streak.days);
+            const progress = Math.min((streak.days % 7) / 7 * 100, 100);
+
+            petPanel.style.display = 'flex';
+            petIcon.textContent = petEmoji;
+            petName.textContent = petNameStr;
+            petStreak.textContent = `${streak.days} 🔥 day${streak.days !== 1 ? 's' : ''} streak`;
+            petProgressBar.style.width = progress + '%';
+            chatPetDisplay.textContent = petEmoji;
+        }
+
+        function sendChatMessage() {
+            const rawText = chatInput.value.trim();
+            if (!rawText || !currentUser) return;
+
+            let text = rawText;
+            if (activeChatTab === 'global') {
+                if (containsBadWord(rawText)) {
+                    text = filterBadWords(rawText);
+                    showToast('⚠️ Bad words are not allowed in global chat — filtered.');
+                }
+            }
+
+            const now = Date.now();
+
+            if (activeChatTab === 'global') {
+                globalChat.push({ id: 'm' + now, user: currentUser, text, timestamp: now });
+                saveGlobalChat();
+                renderGlobalMessages();
+                renderChatList();
+            } else if (activeChatTab === 'dms') {
+                if (activeGroupId && groups[activeGroupId]) {
+                    const key = groupKey(activeGroupId);
+                    if (!dms[key]) dms[key] = [];
+                    dms[key].push({ from: currentUser, text, timestamp: now });
+                    saveDms();
+                    renderGroupMessages(activeGroupId);
+                    renderChatList();
+                } else if (activeDmFriend) {
+                    const key = dmKey(currentUser, activeDmFriend);
+                    if (!dms[key]) dms[key] = [];
+                    dms[key].push({ from: currentUser, text, timestamp: now });
+                    saveDms();
+
+                    const today = todayStr();
+                    if (!streaks[key]) {
+                        streaks[key] = { days: 0, lastDate: null, lastFrom: null, lastMutualDate: null };
+                    }
+                    const s = streaks[key];
+
+                    const lastMsgFromOther = dms[key].slice(0, -1).reverse().find(m => m.from !== currentUser && new Date(m.timestamp).toISOString().slice(0,10) === today);
+                    const hasSentToday = dms[key].some(m => m.from === currentUser && new Date(m.timestamp).toISOString().slice(0,10) === today);
+
+                    if (hasSentToday && lastMsgFromOther) {
+                        if (s.lastMutualDate !== today) {
+                            s.days = (s.days || 0) + 1;
+                            s.lastMutualDate = today;
+                            saveStreaks();
+                            showToast(`🔥 Streak with ${activeDmFriend}: ${s.days} day${s.days !== 1 ? 's' : ''}!`);
+                        }
+                    }
+                    saveStreaks();
+
+                    renderDmMessages();
+                    renderChatList();
+                    renderPetPanel(activeDmFriend);
+                }
+            }
+
+            chatInput.value = '';
+            chatInput.focus();
+        }
+
+        chatSendBtn.addEventListener('click', sendChatMessage);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        chatTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                chatTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                activeChatTab = tab.dataset.chatTab;
+                if (activeChatTab === 'global') { activeDmFriend = null; activeGroupId = null; }
+                updateChatUI();
+            });
+        });
+
+        // ========== GROUP CREATION ==========
+        function openGroupModal() {
+            if (!currentUser) { showToast('Sign in to create groups'); openLoginModal('signin'); return; }
+            const myFriends = friends[currentUser] || [];
+            if (myFriends.length === 0) {
+                showToast('You need friends first! Add some in the Friends app.');
+                return;
+            }
+            groupNameInput.value = '';
+            groupError.textContent = '';
+            groupFriendsList.innerHTML = myFriends.map(f => `
+                <label class="group-friend-check">
+                    <input type="checkbox" value="${f}">
+                    <div class="gf-avatar">${f.charAt(0).toUpperCase()}</div>
+                    <div class="gf-name">${escapeHtml(f)}</div>
+                </label>
+            `).join('');
+            groupOverlay.classList.add('active');
+            groupNameInput.focus();
+        }
+
+        function closeGroupModal() {
+            groupOverlay.classList.remove('active');
+            groupError.textContent = '';
+        }
+
+        function createGroup() {
+            const name = groupNameInput.value.trim();
+            if (!name) { groupError.textContent = 'Enter a group name.'; return; }
+            if (name.length > 40) { groupError.textContent = 'Group name too long (max 40).'; return; }
+
+            const checks = groupFriendsList.querySelectorAll('input[type="checkbox"]');
+            const selected = [];
+            checks.forEach(c => { if (c.checked) selected.push(c.value); });
+
+            if (selected.length === 0) { groupError.textContent = 'Select at least one friend.'; return; }
+
+            const groupId = 'grp' + Date.now() + Math.random().toString(36).substr(2, 5);
+            groups[groupId] = {
+                name,
+                members: [currentUser, ...selected],
+                createdBy: currentUser,
+                createdAt: Date.now()
+            };
+            saveGroups();
+
+            const key = groupKey(groupId);
+            if (!dms[key]) dms[key] = [];
+            dms[key].push({
+                from: 'System',
+                text: `${currentUser} created the group "${name}" with ${selected.join(', ')}`,
+                timestamp: Date.now(),
+                system: true
+            });
+            saveDms();
+
+            closeGroupModal();
+            activeChatTab = 'dms';
+            activeGroupId = groupId;
+            activeDmFriend = null;
+            chatTabs.forEach(t => t.classList.toggle('active', t.dataset.chatTab === 'dms'));
+            updateChatUI();
+            showToast(`✅ Group "${name}" created!`);
+        }
+
+        newGroupBtn.addEventListener('click', openGroupModal);
+        closeGroupBtn.addEventListener('click', closeGroupModal);
+        cancelGroupBtn.addEventListener('click', closeGroupModal);
+        createGroupBtn.addEventListener('click', createGroup);
+        groupOverlay.addEventListener('click', (e) => { if (e.target === groupOverlay) closeGroupModal(); });
+
+        // ========== FRIENDS LOGIC ==========
+        function renderFriends() {
+            if (!currentUser) {
+                friendsContent.innerHTML = `<div class="friends-empty"><div class="big-icon">👥</div><div>Sign in to add friends and see requests!</div></div>`;
+                return;
+            }
+
+            const myFriends = friends[currentUser] || [];
+            const myRequests = friendRequests[currentUser] || [];
+
+            let html = '';
+
+            if (myRequests.length > 0) {
+                html += `<div class="friends-section"><h4>📨 Friend Requests <span class="req-badge">${myRequests.length}</span></h4>`;
+                myRequests.forEach(fromUser => {
+                    html += `
+                        <div class="friend-item">
+                            <div class="friend-avatar" style="background: #ff9500;">${fromUser.charAt(0).toUpperCase()}</div>
+                            <div class="friend-name">${escapeHtml(fromUser)}</div>
+                            <div class="friend-actions">
+                                <button class="btn btn-success btn-sm" data-accept="${fromUser}">Accept</button>
+                                <button class="btn btn-danger btn-sm" data-decline="${fromUser}">Decline</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            html += `<div class="friends-section"><h4>👥 Friends (${myFriends.length})</h4>`;
+            if (myFriends.length === 0) {
+                html += `<div class="friends-empty" style="padding: 16px; font-size: 12px;">No friends yet. Add someone using the bar above!</div>`;
+            } else {
+                myFriends.forEach(f => {
+                    const key = dmKey(currentUser, f);
+                    const streak = streaks[key] || { days: 0 };
+                    html += `
+                        <div class="friend-item">
+                            <div class="friend-avatar">${f.charAt(0).toUpperCase()}</div>
+                            <div class="friend-name">${escapeHtml(f)}</div>
+                            <div class="chat-streak" style="margin-right: 8px;">${getPetEmoji(streak.days)} ${streak.days}</div>
+                            <div class="friend-actions">
+                                <button class="btn btn-primary btn-sm" data-dm="${f}">💌 DM</button>
+                                <button class="btn btn-danger btn-sm" data-unfriend="${f}">Remove</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            html += '</div>';
+
+            friendsContent.innerHTML = html;
+
+            friendsContent.querySelectorAll('[data-accept]').forEach(btn => {
+                btn.addEventListener('click', () => acceptFriendRequest(btn.dataset.accept));
+            });
+            friendsContent.querySelectorAll('[data-decline]').forEach(btn => {
+                btn.addEventListener('click', () => declineFriendRequest(btn.dataset.decline));
+            });
+            friendsContent.querySelectorAll('[data-dm]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeChatTab = 'dms';
+                    activeDmFriend = btn.dataset.dm;
+                    activeGroupId = null;
+                    openWindow('chat');
+                    chatTabs.forEach(t => t.classList.toggle('active', t.dataset.chatTab === 'dms'));
+                    updateChatUI();
+                });
+            });
+            friendsContent.querySelectorAll('[data-unfriend]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const friend = btn.dataset.unfriend;
+                    if (confirm(`Remove ${friend} from friends?`)) {
+                        friends[currentUser] = (friends[currentUser] || []).filter(f => f !== friend);
+                        friends[friend] = (friends[friend] || []).filter(f => f !== currentUser);
+                        saveFriends();
+                        renderFriends();
+                        updateChatUI();
+                        showToast(`Removed ${friend}`);
+                    }
+                });
+            });
+        }
+
+        function sendFriendRequest(toUser) {
+            if (!currentUser) { showToast('Sign in to add friends'); openLoginModal('signin'); return; }
+            toUser = toUser.trim();
+            if (!toUser) { showToast('Enter a username'); return; }
+            if (toUser === currentUser) { showToast('You cannot add yourself'); return; }
+            if (!users[toUser]) { showToast(`User "${toUser}" not found`); return; }
+
+            const myFriends = friends[currentUser] || [];
+            if (myFriends.includes(toUser)) { showToast('Already friends'); return; }
+
+            const myRequests = friendRequests[toUser] || [];
+            if (myRequests.includes(currentUser)) { showToast('Request already sent'); return; }
+
+            const theirRequests = friendRequests[currentUser] || [];
+            if (theirRequests.includes(toUser)) {
+                acceptFriendRequest(toUser);
+                return;
+            }
+
+            friendRequests[toUser] = [...(friendRequests[toUser] || []), currentUser];
+            saveFriendRequests();
+            showToast(`📨 Friend request sent to ${toUser}`);
+            friendUsernameInput.value = '';
+            renderFriends();
+        }
+
+        function acceptFriendRequest(fromUser) {
+            if (!currentUser) return;
+            friendRequests[currentUser] = (friendRequests[currentUser] || []).filter(u => u !== fromUser);
+            saveFriendRequests();
+
+            friends[currentUser] = [...(friends[currentUser] || []), fromUser];
+            friends[fromUser] = [...(friends[fromUser] || []), currentUser];
+            saveFriends();
+
+            renderFriends();
+            updateChatUI();
+            showToast(`✅ You and ${fromUser} are now friends!`);
+        }
+
+        function declineFriendRequest(fromUser) {
+            if (!currentUser) return;
+            friendRequests[currentUser] = (friendRequests[currentUser] || []).filter(u => u !== fromUser);
+            saveFriendRequests();
+            renderFriends();
+            showToast(`Declined request from ${fromUser}`);
+        }
+
+        addFriendBtn.addEventListener('click', () => sendFriendRequest(friendUsernameInput.value));
+        friendUsernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendFriendRequest(friendUsernameInput.value);
+        });
+
+        // ========== BADGES ==========
+        function updateBadges() {
+            if (!currentUser) {
+                chatBadge.classList.remove('show');
+                friendsBadge.classList.remove('show');
+                return;
+            }
+            const reqs = (friendRequests[currentUser] || []).length;
+            if (reqs > 0) {
+                friendsBadge.textContent = reqs;
+                friendsBadge.classList.add('show');
+            } else {
+                friendsBadge.classList.remove('show');
+            }
+
+            const myFriends = friends[currentUser] || [];
+            let unreadDmCount = 0;
+            const today = todayStr();
+            myFriends.forEach(f => {
+                const key = dmKey(currentUser, f);
+                const thread = dms[key] || [];
+                const hasUnread = thread.some(m => m.from === f && new Date(m.timestamp).toISOString().slice(0,10) === today);
+                if (hasUnread) unreadDmCount++;
+            });
+            if (unreadDmCount > 0) {
+                chatBadge.textContent = unreadDmCount;
+                chatBadge.classList.add('show');
+            } else {
+                chatBadge.classList.remove('show');
+            }
+        }
+
+        // ========== AI CHAT ==========
+        function addAIMessage(role, text, imageData) {
+            const div = document.createElement('div');
+            div.className = `ai-message ${role}`;
+            const avatar = role === 'user' ? '👤' : '🤖';
+            div.innerHTML = `
+                <div class="avatar">${avatar}</div>
+                <div class="bubble">
+                    ${text ? escapeHtml(text).replace(/\n/g, '<br>') : ''}
+                    ${imageData ? `<img src="${imageData}" alt="user image">` : ''}
+                </div>
+            `;
+            aiMessages.appendChild(div);
+            aiMessages.scrollTop = aiMessages.scrollHeight;
+        }
+
+        function addAITypingIndicator() {
+            const div = document.createElement('div');
+            div.className = 'ai-message bot';
+            div.id = 'aiTypingIndicator';
+            div.innerHTML = `<div class="avatar">🤖</div><div class="bubble"><div class="ai-typing"><span></span><span></span><span></span></div></div>`;
+            aiMessages.appendChild(div);
+            aiMessages.scrollTop = aiMessages.scrollHeight;
+        }
+
+        function removeAITypingIndicator() {
+            const el = document.getElementById('aiTypingIndicator');
+            if (el) el.remove();
+        }
+
+        function generateAIResponse(userText, imageData) {
+            const text = (userText || '').toLowerCase().trim();
+
+            if (imageData) {
+                if (text.includes('what') || text.includes('describe') || text.includes('see')) {
+                    return "I can see the image you've shared! It looks like a digital illustration or photo. The colors are vibrant and there's a nice composition. Since this is a demo AI, I can't analyze the exact content, but in a real integration with a vision model, I'd describe every detail. What would you like to know about it?";
+                }
+                return "Thanks for sharing that image! In a full implementation with a vision API, I'd analyze the contents and answer your question. For now, this is a simulated response. Try asking 'what is in this image?' or 'describe this picture'!";
+            }
+
+            if (text.includes('hello') || text.includes('hi') || text.includes('hey')) {
+                return "Hello! 👋 I'm your AI assistant. Ask me anything — questions, riddles, or even send me an image to analyze. What's on your mind?";
+            }
+            if (text.includes('how are you')) {
+                return "I'm running smoothly in your browser! Thanks for asking. As a demo AI, I'm always ready to chat. What would you like to talk about?";
+            }
+            if (text.includes('your name') || text.includes('who are you')) {
+                return "I'm the LinkVault AI Assistant — a demo chatbot built right into this macOS-style desktop. I can answer questions and analyze images (simulated). How can I help?";
+            }
+            if (text.includes('game') || text.includes('play')) {
+                return "The Game Vault app (🎮 in the dock) is where all games live. If it's empty, Ryan can sign in and add games by pasting HTML code. Everyone can play without an account — but you can sign up to join!";
+            }
+            if (text.includes('link')) {
+                return "The Links app (🔗 in the dock) lets anyone share useful links. Just provide an optional image, a title, and the URL!";
+            }
+            if (text.includes('chat') || text.includes('global')) {
+                return "The Chat app (💬 in the dock) has a Global tab where everyone can talk (with a bad-word filter!), and a DMs tab for private chats and group chats with friends. You can build streaks with friends too!";
+            }
+            if (text.includes('friend')) {
+                return "The Friends app (👥 in the dock) lets you add friends, accept requests, and see your friends list. When you and a friend message each other every day, you build a streak and your shared pet grows!";
+            }
+            if (text.includes('group')) {
+                return "In the Chat app's DMs tab, click '+ New Group' to create a group chat with several friends at once. Only your friends can be added!";
+            }
+            if (text.includes('streak') || text.includes('pet')) {
+                return "When you and a friend both send messages in your DM on the same day, your streak increases by 1 and your pet evolves. Check the DMs tab in the Chat app — your pet shows at the bottom!";
+            }
+            if (text.includes('cursor')) {
+                return "You can customize your cursor in Settings (⚙️). Choose an image, adjust the size, and apply it! You can also reset to the default cursor.";
+            }
+            if (text.includes('theme') || text.includes('wallpaper') || text.includes('color')) {
+                return "The Settings app (⚙️ in the dock) has preset wallpapers AND lets you upload your own custom image! The default is the rainy torii shrine video.";
+            }
+            if (text.includes('owner') || text.includes('ryan') || text.includes('login') || text.includes('password')) {
+                return "The owner account is named Ryan. Sign in with password 0101 to add or delete games. Everyone else can create their own account or play as a guest!";
+            }
+            if (text.includes('battery') || text.includes('clock') || text.includes('time')) {
+                return "Check the bottom taskbar! It shows the live clock and your device's battery level (if supported by your browser).";
+            }
+            if (text.includes('joke')) {
+                const jokes = [
+                    "Why do programmers prefer dark mode? Because light attracts bugs! 🐛",
+                    "Why did the developer go broke? Because they used up all their cache. 💸",
+                    "How many programmers does it take to change a light bulb? None — that's a hardware problem. 💡",
+                    "What's a computer's favorite snack? Microchips! 🍪",
+                    "Why was the JavaScript developer sad? Because they didn't Node how to Express themselves. 😄"
+                ];
+                return jokes[Math.floor(Math.random() * jokes.length)];
+            }
+            if (text.includes('math') || text.match(/\d+\s*[\+\-\*\/]\s*\d+/)) {
+                const match = text.match(/(\d+)\s*([\+\-\*\/])\s*(\d+)/);
+                if (match) {
+                    const a = parseFloat(match[1]);
+                    const op = match[2];
+                    const b = parseFloat(match[3]);
+                    let result;
+                    if (op === '+') result = a + b;
+                    else if (op === '-') result = a - b;
+                    else if (op === '*') result = a * b;
+                    else if (op === '/') result = b !== 0 ? a / b : 'undefined (division by zero)';
+                    return `The answer is: ${result}`;
+                }
+                return "I can do basic math! Try something like '5 + 3' or '12 * 4'.";
+            }
+            if (text.includes('weather')) {
+                return "I don't have access to real-time weather data in this demo. But I can tell you it's always sunny inside LinkVault! ☀️";
+            }
+            if (text.includes('thank')) {
+                return "You're very welcome! 😊 Happy to help. Anything else I can do for you?";
+            }
+            if (text.includes('bye') || text.includes('goodbye')) {
+                return "Goodbye! 👋 Come back anytime to chat or play games. Have a great day!";
+            }
+
+            const fallbacks = [
+                `That's an interesting question about "${userText.slice(0, 50)}${userText.length > 50 ? '...' : ''}". In a full AI integration, I'd give you a detailed answer. As a demo, I can say that I'm constantly learning!`,
+                "Hmm, let me think about that... 🤔 Great question! Since I'm a demo AI, I'd normally process this with a large language model. Is there anything specific about LinkVault I can help with?",
+                "I appreciate your curiosity! In this demo, I have limited knowledge. Try asking about games, themes, or how to sign in. Or send me an image!",
+                "That's a thoughtful question. While I can't give a full answer in demo mode, I'm here to chat. What else is on your mind?",
+                "Interesting! 🤖 As a simulated AI, I'd love to dive deeper. For now, try asking me a joke, some math, or about the LinkVault features!"
+            ];
+            return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        }
+
+        async function sendAIMessage() {
+            const text = aiInput.value.trim();
+            if (!text && !pendingImage) return;
+
+            addAIMessage('user', text, pendingImage);
+            aiInput.value = '';
+            aiInput.style.height = 'auto';
+            const imgToSend = pendingImage;
+            pendingImage = null;
+            aiImagePreview.classList.remove('show');
+            aiPreviewImg.src = '';
+
+            addAITypingIndicator();
+            aiSendBtn.disabled = true;
+
+            const delay = 800 + Math.random() * 1200;
+            setTimeout(() => {
+                removeAITypingIndicator();
+                const response = generateAIResponse(text, imgToSend);
+                addAIMessage('bot', response);
+                aiSendBtn.disabled = false;
+                aiInput.focus();
+            }, delay);
+        }
+
+        aiImageBtn.addEventListener('click', () => aiImageFile.click());
+        aiImageFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    pendingImage = ev.target.result;
+                    aiPreviewImg.src = pendingImage;
+                    aiImagePreview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            }
+            aiImageFile.value = '';
+        });
+        removeImgBtn.addEventListener('click', () => {
+            pendingImage = null;
+            aiImagePreview.classList.remove('show');
+            aiPreviewImg.src = '';
+        });
+        aiSendBtn.addEventListener('click', sendAIMessage);
+        aiInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendAIMessage();
+            }
+        });
+        aiInput.addEventListener('input', () => {
+            aiInput.style.height = 'auto';
+            aiInput.style.height = Math.min(aiInput.scrollHeight, 120) + 'px';
+        });
+
+        // ========== INIT ==========
+        renderThemes();
+        if (customWallpaperData) {
+            applyCustomWallpaper(customWallpaperData);
+        } else {
+            applyTheme(themes[0]);
+        }
+        renderGames();
+        renderLinks();
+        updateAuthUI();
+        updateBadges();
+
+        // Periodic refresh
+        setInterval(() => {
+            if (currentUser) {
+                const newGlobalChat = loadJSON(GLOBAL_CHAT_KEY, []);
+                if (JSON.stringify(newGlobalChat) !== JSON.stringify(globalChat)) {
+                    globalChat = newGlobalChat;
+                    if (activeChatTab === 'global') renderGlobalMessages();
+                    renderChatList();
+                }
+                const newDms = loadJSON(DMS_KEY, {});
+                if (JSON.stringify(newDms) !== JSON.stringify(dms)) {
+                    dms = newDms;
+                    if (activeChatTab === 'dms') {
+                        if (activeGroupId) renderGroupMessages(activeGroupId);
+                        else if (activeDmFriend) { renderDmMessages(); renderPetPanel(activeDmFriend); }
+                    }
+                    renderChatList();
+                }
+                const newStreaks = loadJSON(STREAKS_KEY, {});
+                if (JSON.stringify(newStreaks) !== JSON.stringify(streaks)) {
+                    streaks = newStreaks;
+                    renderChatList();
+                    if (activeChatTab === 'dms' && activeDmFriend) renderPetPanel(activeDmFriend);
+                }
+                const newReqs = loadJSON(REQUESTS_KEY, {});
+                if (JSON.stringify(newReqs) !== JSON.stringify(friendRequests)) {
+                    friendRequests = newReqs;
+                    renderFriends();
+                    updateBadges();
+                }
+                const newFriends = loadJSON(FRIENDS_KEY, {});
+                if (JSON.stringify(newFriends) !== JSON.stringify(friends)) {
+                    friends = newFriends;
+                    renderFriends();
+                    renderChatList();
+                    updateBadges();
+                }
+                const newGroups = loadJSON(GROUPS_KEY, {});
+                if (JSON.stringify(newGroups) !== JSON.stringify(groups)) {
+                    groups = newGroups;
+                    renderChatList();
+                }
+                const newGames = loadJSON(GAMES_KEY, []);
+                if (JSON.stringify(newGames) !== JSON.stringify(games)) {
+                    games = newGames;
+                    renderGames();
+                }
+                const newLinks = loadJSON(LINKS_KEY, []);
+                if (JSON.stringify(newLinks) !== JSON.stringify(links)) {
+                    links = newLinks;
+                    renderLinks();
+                }
+            }
+        }, 2000);
+
+        setTimeout(() => showToast('👋 Welcome to LinkVault · Click dock icons to open apps'), 500);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (loginOverlay.classList.contains('active')) closeLoginModal();
+                if (modalOverlay.classList.contains('active')) closeGameModal();
+                if (groupOverlay.classList.contains('active')) closeGroupModal();
+            }
+        });
+
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.app-body') || e.target.closest('input') || e.target.closest('textarea')) return;
+            e.preventDefault();
+        });
+
+    })();
+</script>
+
+</body>
+</html>
